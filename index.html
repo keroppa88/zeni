@@ -187,7 +187,7 @@ td:nth-child(3){color:var(--tag);font-size:12px;min-width:5.5em;word-break:keep-
     <div class="center">
       <div class="picked" id="picked"></div>
       <input class="memo-in" id="storeName" type="text" placeholder="店舗名を入力" autocomplete="off" hidden>
-      <input class="memo-in" id="memo" type="text" placeholder="項目名を入力" autocomplete="off" hidden>
+      <input class="memo-in" id="memo" type="text" placeholder="商品名など" autocomplete="off" hidden>
       <div class="row">
         <div class="amtbox"><div class="calc" id="calc"></div><div class="amount" id="amount"><small>¥</small>0</div></div>
         <button class="ok" id="ok" disabled>決定</button>
@@ -412,6 +412,10 @@ function pickStore(t){SE.click();store=store===t?null:t;
   if(store){if(storeItem(store).food)auto("食品");(storeItem(store).autoTags||[]).forEach(auto);if(colorOf(store)==="tech")auto("固定");
     if(isFree(store))setTimeout(()=>$("storeName").focus(),0);}
   render()}
+/* 家計簿の白い枠：タップで商品名などのメモ欄を出す（記入タグなしでも可） */
+let memoOpen=false;
+document.querySelector("#inputView .center").addEventListener("click",e=>{
+  if(e.target.closest("button,input"))return;memoOpen=true;render();$("memo").focus()});
 function pickTag(t){autoAdded.delete(t);tags.has(t)?tags.delete(t):tags.add(t);render();if(t===memoName()&&tags.has(t))$("memo").focus()}
 /* 店舗「記入」なら入力した名前を店舗名として使う */
 const storeName=()=>isFree(store)?$("storeName").value.trim():store;
@@ -513,7 +517,7 @@ $("moveCancel").onclick=endMove;
 function render(){
   document.querySelectorAll("#stores .chip[data-name]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.name===store));
   document.querySelectorAll("#tags .chip[data-name]").forEach(b=>b.setAttribute("aria-pressed",tags.has(b.dataset.name)));
-  $("memo").hidden=!tags.has(memoName());
+  $("memo").hidden=!(memoOpen||tags.has(memoName())||$("memo").value);
   $("storeName").hidden=!isFree(store);
   $("picked").innerHTML=(storeName()?`<span>${esc(storeName())}</span>`:`<span class="ph">店舗を選択</span>`)+(tagList().length?tagList().map(t=>`<span>${t}</span>`).join(""):`<span class="ph">タグなし</span>`);
   $("amount").innerHTML=`<small>¥</small>${yen(total())}`;
@@ -562,10 +566,10 @@ $("ok").onclick=()=>{
   SE.ok();
   const d=new Date();
   const date=`${dkey(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  const r=load();const memo=tags.has(memoName())?$("memo").value.trim():"";
+  const r=load();const memo=$("memo").hidden?"":$("memo").value.trim();
   r.unshift({id:Date.now(),date,store:storeName(),tags:tagList(),memo,amount:total()});save(r);
   toast(`${storeName()} ¥${yen(total())} を記録`);
-  store=null;tags=new Set();autoAdded=new Set();$("memo").value="";$("memo").blur();$("storeName").value="";$("storeName").blur();base=0;typed="";render();
+  store=null;tags=new Set();autoAdded=new Set();memoOpen=false;$("memo").value="";$("memo").blur();$("storeName").value="";$("storeName").blur();base=0;typed="";render();
 };
 function toast(t){const e=$("toast");e.textContent=t;e.hidden=false;clearTimeout(e._t);e._t=setTimeout(()=>e.hidden=true,1600)}
 /* 表表示：古い順。各月の「固定」は1日より前に並べる。セルを押すと編集 */
