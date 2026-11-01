@@ -11,43 +11,60 @@
 :root{
   --bg:#f3f5f4; --surface:#ffffff; --fg:#1d2624; --muted:#66746f;
   --line:#d9e0dd; --accent:#1f6f5c; --accent-fg:#ffffff; --tag:#8a5a12; --tag-bg:#fbf1e1;
-  --c-super:#e3f3e4; --c-conv:#fbf3cf; --c-food:#fde6d8; --c-amzn:#eadccb; --c-media:#dcf0fa; --c-life:#ecebe6; --c-tech:#ece3f7;
+  --c-super:#e3f3e4; --c-conv:#fbf3cf; --c-food:#fde6d8; --c-amzn:#eadccb; --c-media:#dcf0fa; --c-life:#ecebe6; --c-tech:#ece3f7; --c-pink:#f9e1ec;
   --total-bg:#3a4a45; --chart:#1f6f5c;
   --sans:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#121816; --surface:#1b2320; --fg:#e6ece9; --muted:#93a39d;
-  --line:#2c3733; --accent:#4fb497; --accent-fg:#0d1513; --tag:#e9b867; --tag-bg:#2a2217; --c-super:#1d3322; --c-conv:#353017; --c-food:#3a2619; --c-amzn:#3a2c1d; --c-media:#16303c; --c-life:#2b2a27; --c-tech:#2c2140; --total-bg:#25302c; --chart:#4fb497; color-scheme:dark}}
+  --line:#2c3733; --accent:#4fb497; --accent-fg:#0d1513; --tag:#e9b867; --tag-bg:#2a2217; --c-super:#1d3322; --c-conv:#353017; --c-food:#3a2619; --c-amzn:#3a2c1d; --c-media:#16303c; --c-life:#2b2a27; --c-tech:#2c2140; --c-pink:#3a1f2c; --total-bg:#25302c; --chart:#4fb497; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#121816; --surface:#1b2320; --fg:#e6ece9; --muted:#93a39d;
-  --line:#2c3733; --accent:#4fb497; --accent-fg:#0d1513; --tag:#e9b867; --tag-bg:#2a2217; --c-super:#1d3322; --c-conv:#353017; --c-food:#3a2619; --c-amzn:#3a2c1d; --c-media:#16303c; --c-life:#2b2a27; --c-tech:#2c2140; --total-bg:#25302c; --chart:#4fb497; color-scheme:dark}
+  --line:#2c3733; --accent:#4fb497; --accent-fg:#0d1513; --tag:#e9b867; --tag-bg:#2a2217; --c-super:#1d3322; --c-conv:#353017; --c-food:#3a2619; --c-amzn:#3a2c1d; --c-media:#16303c; --c-life:#2b2a27; --c-tech:#2c2140; --c-pink:#3a1f2c; --total-bg:#25302c; --chart:#4fb497; color-scheme:dark}
 html,body{height:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-tap-highlight-color:transparent;overflow:hidden;-webkit-user-select:none;user-select:none}
 button{touch-action:manipulation}
 .app{height:100%;display:flex;flex-direction:column;gap:7px;max-width:520px;margin:0 auto;
   padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px));padding-block:8px;box-sizing:border-box}
-/* 店舗：2段の横スクロール */
-.stores{flex:none;display:grid;grid-template-rows:repeat(2,auto);grid-auto-flow:column;gap:5px;overflow-x:auto;scrollbar-width:none}
-.stores::-webkit-scrollbar{display:none}
-.chip{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:7px;padding:6px 9px;font:500 12.5px var(--sans);white-space:nowrap}
-.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
-/* 店舗の分野色 */
-.stores .chip{border-color:transparent}
-.stores .chip[data-c="super"]{background:var(--c-super)}
-.stores .chip[data-c="conv"]{background:var(--c-conv)}
-.stores .chip[data-c="food"]{background:var(--c-food)}
-.stores .chip[data-c="amzn"]{background:var(--c-amzn)}
-.stores .chip[data-c="media"]{background:var(--c-media)}
-.stores .chip[data-c="life"]{background:var(--c-life)}
-.stores .chip[data-c="tech"]{background:var(--c-tech)}
-.stores .chip[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
-.tags{flex:none;display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
-.tags .chip{text-align:center;color:var(--tag);background:var(--tag-bg);border-color:transparent;padding:6px 1px;font-size:11.5px}
-.stores .chip[data-c="free"]{background:var(--surface);border:1px dashed var(--muted)}
-.stores .chip[data-c="free"][aria-pressed="true"]{background:var(--fg);border-style:solid}
-.tags .chip.memo{background:var(--surface);border:1px dashed var(--tag)}
-.tags .chip[aria-pressed="true"]{background:var(--tag);color:var(--bg)}
+/* 店舗・タグ：2段の横スクロール */
+.stores,.tags{flex:none;display:grid;grid-template-rows:repeat(2,auto);grid-auto-flow:column;gap:5px;overflow-x:auto;scrollbar-width:none}
+.stores::-webkit-scrollbar,.tags::-webkit-scrollbar{display:none}
+.chip{border:1px solid transparent;background:var(--surface);color:var(--fg);border-radius:7px;padding:6px 9px;font:500 12.5px var(--sans);white-space:nowrap;-webkit-touch-callout:none}
+.tags .chip{color:var(--tag);font-size:12px}
+/* 色（店舗・タグ共通） */
+.chip[data-c="super"]{background:var(--c-super)}
+.chip[data-c="conv"]{background:var(--c-conv)}
+.chip[data-c="food"]{background:var(--c-food)}
+.chip[data-c="amzn"]{background:var(--c-amzn)}
+.chip[data-c="media"]{background:var(--c-media)}
+.chip[data-c="life"]{background:var(--c-life)}
+.chip[data-c="tech"]{background:var(--c-tech)}
+.chip[data-c="pink"]{background:var(--c-pink)}
+.chip[data-c="beige"]{background:var(--tag-bg)}
+.chip[data-c="free"]{background:var(--surface);border:1px dashed var(--muted)}
+.stores .chip[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.tags .chip[aria-pressed="true"]{background:var(--tag);border-color:var(--tag);color:var(--bg)}
+.chip.plus{background:none;border:1px dashed var(--muted);color:var(--muted);font-weight:700;padding:6px 14px}
+.chip.moving{outline:2px solid var(--accent);outline-offset:1px}
+.move-mode .chip:not(.moving):not(.plus){outline:1px dashed var(--accent);outline-offset:-1px}
+/* 長押しメニュー・編集シート */
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:40;display:flex;align-items:flex-end;justify-content:center}
+.sheet{width:100%;max-width:520px;box-sizing:border-box;background:var(--surface);border-radius:16px 16px 0 0;display:flex;flex-direction:column;gap:10px;
+  padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet h3{margin:0;font-size:15px}
+.sheet .acts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sheet button.act{border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:10px;font:700 15px var(--sans);padding:12px 0}
+.sheet button.act.danger{color:#c0392b}
+.sheet button.act.main{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.sheet button.act.wide{grid-column:1/-1}
+.swatches{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.swatches button{height:40px;border-radius:9px;border:1px solid var(--line);font:500 11px var(--sans);color:var(--fg)}
+.swatches button[aria-pressed="true"]{outline:3px solid var(--fg);outline-offset:1px}
+.sheet input{font:500 16px var(--sans);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;-webkit-user-select:text;user-select:text}
+.move-bar{position:fixed;left:0;right:0;top:0;z-index:30;background:var(--accent);color:var(--accent-fg);display:flex;justify-content:space-between;align-items:center;font:700 13px var(--sans);
+  padding:calc(10px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px))}
+.move-bar button{background:none;border:1px solid currentColor;color:inherit;border-radius:7px;font:700 12px var(--sans);padding:4px 10px}
 /* 中央：縮まない */
 .center{flex:none;display:flex;flex-direction:column;gap:4px;
   --fg:#1d2624;--bg:#eef1f0;--muted:#66746f;--line:#d9e0dd;--accent:#1f6f5c;--accent-fg:#ffffff;--tag:#8a5a12;color-scheme:light;
@@ -152,6 +169,8 @@ td:nth-child(3){color:var(--tag);font-size:12px;min-width:5.5em;word-break:keep-
   </div>
 </div>
 <div class="toast" id="toast" hidden></div>
+<div class="move-bar" id="moveBar" hidden><span>移動先のボタンをタップ</span><button id="moveCancel">やめる</button></div>
+<div class="sheet-bg" id="sheetBg" hidden><div class="sheet" id="sheet"></div></div>
 
 <script>
 const STORE_FREE="記入";
@@ -165,10 +184,17 @@ const STORE_GROUPS=[
   ["life",["ニトリ","メルカリ"]],
   ["tech",["Anthropic（Claude）","OpenAI（ChatGPT）","Microsoft","Google Cloud","Apple","J-Quants API","IIJ","転職会議"]],
 ];
-const STORES=STORE_GROUPS.flatMap(g=>g[1]);
 const CAT=Object.fromEntries(STORE_GROUPS.flatMap(([c,l])=>l.map(n=>[n,c])));
 const MEMO="記入";
-const TAGS=["外食","食品","コンテンツ",MEMO,"非日常気晴らし","非日常必要","必要経費","固定"];
+/* 店舗・タグの並びと色（ブラウザに保存。消しても記録は消えない） */
+const COLORS=[["super","緑"],["conv","黄"],["food","橙"],["amzn","茶"],["media","水色"],["life","灰"],["tech","紫"],["pink","桃"],["beige","肌"],["free","白"]];
+const CFG_KEY="kakeibo.config.v1";
+const defaultCfg=()=>({
+  stores:STORE_GROUPS.flatMap(([c,l])=>l.map(name=>({name,c}))),
+  tags:["外食","食品","コンテンツ",MEMO,"非日常気晴らし","非日常必要","必要経費","固定"].map(name=>({name,c:name===MEMO?"free":"beige"}))});
+let cfg=(()=>{try{const c=JSON.parse(localStorage.getItem(CFG_KEY));if(c&&c.stores&&c.tags)return c}catch(e){}return defaultCfg()})();
+const saveCfg=()=>{try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg))}catch(e){}};
+const colorOf=name=>(cfg.stores.find(x=>x.name===name)||{}).c;
 const KEY="kakeibo.records.v1";
 let store=null, tags=new Set(), base=0, typed="";
 const total=()=>base+Number(typed||0);
@@ -213,28 +239,95 @@ const SE={
 /* 店舗リストを横にスクロールすると約36pxごとにカリカリ */
 (()=>{let last=0;const el=document.getElementById("stores");
   el.addEventListener("scroll",()=>{if(Math.abs(el.scrollLeft-last)>=36){last=el.scrollLeft;SE.tick()}},{passive:true})})();
-function chips(el,items,get,set,sound){
-  items.forEach(t=>{const b=document.createElement("button");b.className="chip";b.textContent=t;if(CAT[t])b.dataset.c=CAT[t];
-    b.onclick=()=>{if(sound)sound();set(get()===t?null:t);render()};el.appendChild(b)});
-}
-/* スーパーを選ぶとタグ「食品」を自動選択（あとで変更可） */
+/* スーパーを選ぶとタグ「食品」、紫の店舗はタグ「固定」を自動選択（あとで変更可） */
 const FOOD_DEFAULT=["サンディ","阪急オアシス","KOHYO","イズミヤ","業務スーパー","シェフカワカミ","イオンタウン"];
 (()=>{let ch=false;const r=load().map(x=>{const t=tagsOf(x);
   if(CAT[x.store]==="tech"&&!t.includes("固定")){ch=true;const {tag,...rest}=x;return {...rest,tags:[...t,"固定"]}}return x});if(ch)save(r)})();
-chips($("stores"),STORES,()=>store,v=>{store=v;if(v&&FOOD_DEFAULT.includes(v))tags.add("食品");
-  if(v&&CAT[v]==="tech")tags.add("固定");
-  if(v===STORE_FREE)setTimeout(()=>$("storeName").focus(),0);},()=>SE.click());
+function pickStore(t){SE.click();store=store===t?null:t;
+  if(store){if(FOOD_DEFAULT.includes(store))tags.add("食品");if(colorOf(store)==="tech")tags.add("固定");
+    if(store===STORE_FREE)setTimeout(()=>$("storeName").focus(),0);}
+  render()}
+function pickTag(t){tags.has(t)?tags.delete(t):tags.add(t);render();if(t===MEMO&&tags.has(t))$("memo").focus()}
 /* 店舗「記入」なら入力した名前を店舗名として使う */
 const storeName=()=>store===STORE_FREE?$("storeName").value.trim():store;
 $("storeName").addEventListener("input",()=>render());
-TAGS.forEach(t=>{const b=document.createElement("button");b.className="chip"+(t===MEMO?" memo":"");b.textContent=t;
-  b.onclick=()=>{tags.has(t)?tags.delete(t):tags.add(t);render();
-    if(t===MEMO&&tags.has(t))$("memo").focus();};
-  $("tags").appendChild(b)});
-const tagList=()=>TAGS.filter(t=>t!==MEMO&&tags.has(t));
+const tagList=()=>cfg.tags.map(x=>x.name).filter(t=>t!==MEMO&&tags.has(t));
+
+let moving=null; // {kind,name}
+function renderChips(){
+  [["stores",pickStore],["tags",pickTag]].forEach(([kind,pick])=>{
+    const el=$(kind),sl=el.scrollLeft;el.innerHTML="";
+    cfg[kind].forEach(item=>{
+      const b=document.createElement("button");b.className="chip";b.textContent=item.name;b.dataset.name=item.name;b.dataset.c=item.c;
+      if(moving&&moving.kind===kind&&moving.name===item.name)b.classList.add("moving");
+      longPress(b,()=>openMenu(kind,item.name));
+      b.addEventListener("click",e=>{if(b._lp){b._lp=false;return}
+        if(moving){if(moving.kind===kind)moveTo(kind,item.name);return}
+        pick(item.name)});
+      el.appendChild(b)});
+    const plus=document.createElement("button");plus.className="chip plus";plus.textContent="＋";plus.setAttribute("aria-label",kind==="stores"?"店舗を追加":"タグを追加");
+    plus.onclick=()=>{if(!moving)openNew(kind)};el.appendChild(plus);
+    el.scrollLeft=sl});
+  document.body.classList.toggle("move-mode",!!moving);
+  render();
+}
+/* 長押し（0.5秒）。指が動いたらスクロールとみなして取り消す */
+function longPress(b,fn){
+  let tm=null,x0=0,y0=0;
+  const cancel=()=>{clearTimeout(tm);tm=null};
+  b.addEventListener("pointerdown",e=>{x0=e.clientX;y0=e.clientY;cancel();tm=setTimeout(()=>{tm=null;b._lp=true;if(navigator.vibrate)navigator.vibrate(15);fn()},500)});
+  b.addEventListener("pointermove",e=>{if(tm&&Math.hypot(e.clientX-x0,e.clientY-y0)>8)cancel()});
+  ["pointerup","pointercancel","pointerleave"].forEach(ev=>b.addEventListener(ev,cancel));
+  b.addEventListener("contextmenu",e=>e.preventDefault());
+}
+const KIND_JA={stores:"店舗",tags:"タグ"};
+function sheet(html){$("sheet").innerHTML=html;$("sheetBg").hidden=false}
+function closeSheet(){$("sheetBg").hidden=true;$("sheet").innerHTML=""}
+$("sheetBg").addEventListener("click",e=>{if(e.target===$("sheetBg"))closeSheet()});
+function openMenu(kind,name){
+  sheet(`<h3>${esc(name)}</h3><div class="acts">
+    <button class="act" data-a="move">移動</button><button class="act" data-a="edit">編集</button><button class="act danger" data-a="del">消去</button>
+    <button class="act wide" data-a="close">やめる</button></div>`);
+  $("sheet").querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{
+    const a=b.dataset.a;
+    if(a==="move"){closeSheet();moving={kind,name};$("moveBar").hidden=false;renderChips()}
+    if(a==="edit")openEdit(kind,name);
+    if(a==="del"){cfg[kind]=cfg[kind].filter(x=>x.name!==name);saveCfg();
+      if(kind==="stores"&&store===name)store=null;if(kind==="tags")tags.delete(name);
+      closeSheet();renderChips();toast(`${name} を消去（記録は残ります）`)}
+    if(a==="close")closeSheet()});
+}
+function swatchesHtml(cur){return `<div class="swatches">${COLORS.map(([c,ja])=>`<button class="chip" data-c="${c}" aria-pressed="${c===cur}">${ja}</button>`).join("")}</div>`}
+function openEdit(kind,name){
+  const item=cfg[kind].find(x=>x.name===name);if(!item)return closeSheet();
+  sheet(`<h3>${esc(name)} の色</h3>${swatchesHtml(item.c)}<div class="acts"><button class="act wide" data-a="close">閉じる</button></div>`);
+  $("sheet").querySelectorAll(".swatches button").forEach(b=>b.onclick=()=>{item.c=b.dataset.c;saveCfg();closeSheet();renderChips()});
+  $("sheet").querySelector("[data-a=close]").onclick=closeSheet;
+}
+function openNew(kind){
+  let c=kind==="stores"?"super":"beige";
+  sheet(`<h3>${KIND_JA[kind]}を追加</h3><input id="newName" type="text" placeholder="${KIND_JA[kind]}名" autocomplete="off">${swatchesHtml(c)}
+    <div class="acts"><button class="act" data-a="close">やめる</button><button class="act main" data-a="add" style="grid-column:span 2">追加</button></div>`);
+  const sw=$("sheet").querySelectorAll(".swatches button");
+  sw.forEach(b=>b.onclick=()=>{c=b.dataset.c;sw.forEach(x=>x.setAttribute("aria-pressed",x===b))});
+  $("sheet").querySelector("[data-a=close]").onclick=closeSheet;
+  $("sheet").querySelector("[data-a=add]").onclick=()=>{
+    const name=$("newName").value.trim();if(!name)return $("newName").focus();
+    if(cfg[kind].some(x=>x.name===name)){toast("同じ名前があります");return}
+    cfg[kind].push({name,c});saveCfg();closeSheet();renderChips();
+    const el=$(kind);el.scrollLeft=el.scrollWidth;toast(`${name} を追加`)};
+  setTimeout(()=>$("newName").focus(),50);
+}
+/* 移動：選んだボタンを、タップしたボタンの位置へ */
+function moveTo(kind,target){
+  const list=cfg[kind],from=list.findIndex(x=>x.name===moving.name),to=list.findIndex(x=>x.name===target);
+  if(from>=0&&to>=0&&from!==to){const [it]=list.splice(from,1);list.splice(to,0,it);saveCfg()}
+  endMove()}
+function endMove(){moving=null;$("moveBar").hidden=true;renderChips()}
+$("moveCancel").onclick=endMove;
 function render(){
-  document.querySelectorAll("#stores .chip").forEach(b=>b.setAttribute("aria-pressed",b.textContent===store));
-  document.querySelectorAll("#tags .chip").forEach(b=>b.setAttribute("aria-pressed",tags.has(b.textContent)));
+  document.querySelectorAll("#stores .chip[data-name]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.name===store));
+  document.querySelectorAll("#tags .chip[data-name]").forEach(b=>b.setAttribute("aria-pressed",tags.has(b.dataset.name)));
   $("memo").hidden=!tags.has(MEMO);
   $("storeName").hidden=store!==STORE_FREE;
   $("picked").innerHTML=(storeName()?`<span>${esc(storeName())}</span>`:`<span class="ph">店舗を選択</span>`)+(tagList().length?tagList().map(t=>`<span>${t}</span>`).join(""):`<span class="ph">タグなし</span>`);
@@ -363,7 +456,7 @@ function renderChart(){
   g+=`<circle class="dot" cx="${ex}" cy="${ey}" r="4"/><text class="endlabel" x="${ex>W-80?ex-8:ex+8}" y="${Math.max(ey-8,T+10)}" text-anchor="${ex>W-80?"end":"start"}">¥${yen(max)}</text>`;
   svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.innerHTML=g;
 }
-render();
+renderChips();
 </script>
 </body>
 </html>
