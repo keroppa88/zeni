@@ -115,7 +115,12 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .modebar button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .fdate{flex:1;display:flex;align-items:center;min-height:40px;font:700 15px var(--sans);padding:0 4px}
 /* 食べログ */
-.center.fcenter{flex-direction:row;align-items:center;gap:10px;padding:10px}
+.center.fcenter{flex-direction:row;align-items:center;gap:10px;padding:10px;cursor:text}
+.fleft{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.fleft #fpicked{display:contents}
+.fnote{flex:1;min-width:6em;border:none;outline:none;background:none;color:var(--fg);font:500 16px var(--sans);padding:4px 2px;-webkit-user-select:text;user-select:text}
+.fnote::placeholder{color:var(--muted)}
+.flog .row small,#ftbody td small{display:block;font-size:11px;color:var(--muted)}
 .fcenter .picked{flex:1;flex-wrap:wrap;white-space:normal;min-height:24px}
 .flog{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column}
 .flog h4{margin:0 0 4px;font-size:11px;font-weight:500;letter-spacing:.06em;color:var(--muted)}
@@ -198,7 +203,7 @@ td:nth-child(3){color:var(--tag);font-size:12px;min-width:5.5em;word-break:keep-
     <div class="stores" id="foods"></div>
     <div class="tags" id="ftags"></div>
     <div class="center fcenter">
-      <div class="picked" id="fpicked"></div>
+      <div class="fleft" id="fleft"><div class="picked" id="fpicked"></div><input class="fnote" id="fnote" type="text" placeholder="メモ" autocomplete="off"></div>
       <button class="ok" id="fok" disabled>決定</button>
     </div>
     <div class="flog"><h4>今日の記録</h4><div id="ftoday"></div></div>
@@ -334,6 +339,7 @@ let fcfg=(()=>{try{const c=JSON.parse(localStorage.getItem(FCFG_KEY));if(c&&c.fo
     ftags:["必然食","半必食","菓子","嗜好品"].map(name=>({name,c:"beige",autoTags:auto[name]}))}})();
 const saveF=()=>{try{localStorage.setItem(FCFG_KEY,JSON.stringify(fcfg))}catch(e){}};
 let foods=new Set(), ftags=new Set(), fOff=new Set();
+document.querySelector(".fcenter").addEventListener("click",e=>{if(!e.target.closest("button"))$("fnote").focus()});
 const fAuto=()=>{const a=new Set();
   fcfg.foods.forEach(x=>{if(foods.has(x.name))(x.autoTags||[]).forEach(t=>a.add(t))});
   fcfg.ftags.forEach(x=>{if(ftags.has(x.name))(x.autoTags||[]).forEach(t=>a.add(t))});return a};
@@ -348,14 +354,14 @@ function renderFood(){
   const d=new Date(),key=dkey(d);
   $("fdate").textContent=`${d.getMonth()+1}月${d.getDate()}日（${"日月火水木金土"[d.getDay()]}）`;
   const today=fload().filter(x=>x.date.startsWith(key));
-  $("ftoday").innerHTML=today.length?today.map(x=>`<div class="row"><time>${x.date.slice(11)}</time><span>${esc(x.foods.join("・"))}</span><em>${esc((x.tags||[]).join("・"))}</em></div>`).join(""):'<p class="empty">まだありません</p>';
+  $("ftoday").innerHTML=today.length?today.map(x=>`<div class="row"><time>${x.date.slice(11)}</time><span>${esc(x.foods.join("・"))}${x.note?`<small>${esc(x.note)}</small>`:""}</span><em>${esc((x.tags||[]).join("・"))}</em></div>`).join(""):'<p class="empty">まだありません</p>';
 }
 $("fok").onclick=()=>{
   const fl=fcfg.foods.map(x=>x.name).filter(n=>foods.has(n));
   const extra=[...foods].filter(n=>!fl.includes(n)); // 一覧から消した直後でも選択分は残す
   const d=new Date(),r=fload();
-  r.unshift({id:Date.now(),date:`${dkey(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`,foods:[...fl,...extra],tags:[...fTagsOn()]});fsave(r);
-  SE.ok();toast(`${[...fl,...extra].join("・")} を記録`);foods=new Set();ftags=new Set();fOff=new Set();renderFood();
+  r.unshift({id:Date.now(),date:`${dkey(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`,foods:[...fl,...extra],tags:[...fTagsOn()],note:$("fnote").value.trim()});fsave(r);
+  SE.ok();toast(`${[...fl,...extra].join("・")} を記録`);foods=new Set();ftags=new Set();fOff=new Set();$("fnote").value="";$("fnote").blur();renderFood();
 };
 /* 食べログの表：古い順、日付ごと。セルを押すと編集 */
 function renderFoodTable(){
@@ -366,7 +372,7 @@ function renderFoodTable(){
     const [yy,mm,dd]=x.date.slice(0,10).split("-");
     if(yy+mm!==month){month=yy+mm;const h=document.createElement("tr");h.className="month";h.innerHTML=`<td colspan="4">${yy}年${Number(mm)}月</td>`;tb.appendChild(h)}
     const tr=document.createElement("tr");
-    tr.innerHTML=`<td data-f="date">${Number(mm)}/${Number(dd)}</td><td data-f="foods">${esc(x.foods.join("・"))}</td><td data-f="tags">${esc((x.tags||[]).join("・"))}</td><td></td>`;
+    tr.innerHTML=`<td data-f="date">${Number(mm)}/${Number(dd)}</td><td data-f="foods">${esc(x.foods.join("・"))}${x.note?`<small>${esc(x.note)}</small>`:""}</td><td data-f="tags">${esc((x.tags||[]).join("・"))}</td><td></td>`;
     tr.querySelectorAll("td[data-f]").forEach(td=>td.onclick=()=>editFoodCell(td,x));
     const b=document.createElement("button");b.className="del";b.textContent="×";b.setAttribute("aria-label","削除");
     b.onclick=()=>{if(b.classList.contains("c")){fsave(fload().filter(y=>y.id!==x.id));renderFoodTable();renderFood()}else{b.classList.add("c");b.textContent="削除"}};
@@ -377,18 +383,19 @@ function editFoodCell(td,x){
   const f=td.dataset.f;td.classList.add("editing");
   const i=document.createElement("input");i.className="cell-in";
   if(f==="date"){i.type="date";i.value=x.date.slice(0,10)}else{i.type="text";i.value=(f==="foods"?x.foods:(x.tags||[])).join("・");i.placeholder="・で区切る"}
-  td.innerHTML="";td.appendChild(i);i.focus();
+  const n=document.createElement("input");n.className="cell-in";n.type="text";n.value=x.note||"";n.placeholder="メモ";
+  td.innerHTML="";td.appendChild(i);if(f==="foods")td.appendChild(n);i.focus();
   let done=false;
   const finish=ok=>{if(done)return;done=true;
     if(ok){const r=fload(),y=r.find(z=>z.id===x.id);if(y){
       const list=i.value.split(/[・,、\s]+/).map(t=>t.trim()).filter(Boolean);
       if(f==="date"&&/^\d{4}-\d{2}-\d{2}$/.test(i.value))y.date=i.value+x.date.slice(10);
-      if(f==="foods"&&list.length)y.foods=list;
+      if(f==="foods"){if(list.length)y.foods=list;y.note=n.value.trim()}
       if(f==="tags")y.tags=list;
       fsave(r)}}
     renderFoodTable();renderFood()};
-  i.addEventListener("blur",()=>finish(true));
-  i.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();finish(true)}if(e.key==="Escape")finish(false)});
+  td.addEventListener("focusout",e=>{if(!td.contains(e.relatedTarget))finish(true)});
+  [i,n].forEach(el=>el.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();finish(true)}if(e.key==="Escape")finish(false)}));
 }
 
 /* 店舗で自動的に付けたタグ。店舗を変えたら外す（手で付けたタグは残す） */
