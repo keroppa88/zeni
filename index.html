@@ -178,7 +178,9 @@ function chips(el,items,get,set,sound){
   items.forEach(t=>{const b=document.createElement("button");b.className="chip";b.textContent=t;if(CAT[t])b.dataset.c=CAT[t];
     b.onclick=()=>{if(sound)sound();set(get()===t?null:t);render()};el.appendChild(b)});
 }
-chips($("stores"),STORES,()=>store,v=>store=v,()=>SE.click());
+/* スーパーを選ぶとタグ「食品」を自動選択（あとで変更可） */
+const FOOD_DEFAULT=["サンディ","阪急オアシス","KOHYO","イズミヤ","業務スーパー","シェフカワカミ","イオンタウン"];
+chips($("stores"),STORES,()=>store,v=>{store=v;if(v&&FOOD_DEFAULT.includes(v))tag="食品";},()=>SE.click());
 chips($("tags"),TAGS,()=>tag,v=>tag=v);
 function render(){
   document.querySelectorAll("#stores .chip").forEach(b=>b.setAttribute("aria-pressed",b.textContent===store));
