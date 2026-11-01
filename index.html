@@ -22,6 +22,10 @@
 :root[data-theme="dark"]{
   --bg:#121816; --surface:#1b2320; --fg:#e6ece9; --muted:#93a39d;
   --line:#2c3733; --accent:#4fb497; --accent-fg:#0d1513; --tag:#e9b867; --tag-bg:#2a2217; --c-super:#1d3322; --c-conv:#353017; --c-food:#3a2619; --c-amzn:#3a2c1d; --c-media:#16303c; --c-life:#2b2a27; --c-tech:#2c2140; --c-pink:#3a1f2c; --total-bg:#25302c; --chart:#4fb497; --engel:#f0a35c; --marx:#a3a3f5; color-scheme:dark}
+/* 食べログ：ダークモードでも薄いオレンジの明るい画面（ダーク指定より後ろに置いて上書き） */
+:root.food{--bg:#fdebd6; --surface:#fff8f0; --fg:#3a2a1c; --muted:#8f7560; --line:#efd2b3;
+  --accent:#c4621d; --accent-fg:#ffffff; --tag:#9a5a12; --tag-bg:#fff3e2; --c-food:#f8cfae; --c-pink:#f9dbe6; --c-media:#dcefff;
+  --c-super:#e1f1df; --c-conv:#fbf0c4; --c-amzn:#ead8c4; --c-life:#eee6dc; --c-tech:#ebe0f5; color-scheme:light}
 html,body{height:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-tap-highlight-color:transparent;overflow:hidden;-webkit-user-select:none;user-select:none}
 button{touch-action:manipulation}
@@ -116,6 +120,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .fdate{flex:1;display:flex;align-items:center;min-height:40px;font:700 15px var(--sans);padding:0 4px}
 /* 食べログ */
 .center.fcenter{flex-direction:row;align-items:center;gap:10px;padding:10px;cursor:text}
+:root.food .center{--accent:#c4621d;--fg:#3a2a1c;--bg:#fdebd6;--muted:#8f7560;--line:#efd2b3}
 .fleft{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
 .fleft #fpicked{display:contents}
 .fnote{flex:1;min-width:6em;border:none;outline:none;background:none;color:var(--fg);font:500 16px var(--sans);padding:4px 2px;-webkit-user-select:text;user-select:text}
@@ -608,6 +613,7 @@ const VIEWS={kakei:[["inputView","表"],["tableView","グラフ"],["chartView","
 const ALL_VIEWS=["inputView","tableView","chartView","foodInput","foodTable"];
 let appMode="kakei", view=0;
 function showView(){
+  document.documentElement.classList.toggle("food",appMode==="food");
   const vs=VIEWS[appMode],id=vs[view][0];
   ALL_VIEWS.forEach(v=>$(v).hidden=v!==id);
   $("switch").textContent=vs[view][1];
