@@ -52,6 +52,8 @@ button{touch-action:manipulation}
 .picked .ph{color:var(--muted);font-weight:500;background:none;padding:1px 0}
 .row{display:flex;align-items:center;gap:10px}
 .amount{flex:1;min-width:0;font:600 30px var(--mono);font-variant-numeric:tabular-nums;text-align:right;overflow:hidden;white-space:nowrap}
+.amtbox{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-end}
+.calc{font:500 11px var(--mono);color:var(--muted);min-height:14px;font-variant-numeric:tabular-nums}
 .amount small{font-size:.5em;color:var(--muted);margin-right:4px}
 .ok{flex:none;background:var(--accent);color:var(--accent-fg);border:none;border-radius:10px;font:700 16px var(--sans);padding:11px 18px}
 .ok:disabled{opacity:.35}
@@ -102,7 +104,7 @@ td:nth-child(3){color:var(--tag);font-size:12px}
     <div class="center">
       <div class="picked" id="picked"></div>
       <div class="row">
-        <div class="amount" id="amount"><small>¥</small>0</div>
+        <div class="amtbox"><div class="calc" id="calc"></div><div class="amount" id="amount"><small>¥</small>0</div></div>
         <button class="ok" id="ok" disabled>決定</button>
       </div>
     </div>
@@ -133,7 +135,8 @@ const STORES=STORE_GROUPS.flatMap(g=>g[1]);
 const CAT=Object.fromEntries(STORE_GROUPS.flatMap(([c,l])=>l.map(n=>[n,c])));
 const TAGS=["外食","食品","コンテンツ","非日常気晴らし","非日常必要","必要経費"];
 const KEY="kakeibo.records.v1";
-let store=null, tag=null, amt="";
+let store=null, tag=null, base=0, typed="";
+const total=()=>base+Number(typed||0);
 
 const load=()=>{try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return []}};
 const save=r=>{try{localStorage.setItem(KEY,JSON.stringify(r))}catch(e){}};
@@ -181,8 +184,9 @@ function render(){
   document.querySelectorAll("#stores .chip").forEach(b=>b.setAttribute("aria-pressed",b.textContent===store));
   document.querySelectorAll("#tags .chip").forEach(b=>b.setAttribute("aria-pressed",b.textContent===tag));
   $("picked").innerHTML=(store?`<span>${store}</span>`:`<span class="ph">店舗を選択</span>`)+(tag?`<span>${tag}</span>`:`<span class="ph">タグなし</span>`);
-  $("amount").innerHTML=`<small>¥</small>${yen(Number(amt||0))}`;
-  $("ok").disabled=!(store&&Number(amt)>0);
+  $("amount").innerHTML=`<small>¥</small>${yen(total())}`;
+  $("calc").textContent=(base&&typed)?`${yen(base)} ＋ ${yen(Number(typed))}`:"";
+  $("ok").disabled=!(store&&total()>0);
   renderTotal();
 }
 /* 累計：タップで 今月→本日→今週→月前半→月後半 */
@@ -213,9 +217,10 @@ $("total").onclick=()=>{mode=(mode+1)%5;renderTotal()};
   if(k[0]==="+"){b.className="add";b.textContent=yen(Number(k.slice(1)));}
   else{b.textContent=k;if(k==="C"||k==="⌫")b.className="fn";}
   b.onclick=()=>{
-    if(k[0]==="+"){SE.bash();const v=Number(amt||0)+Number(k.slice(1));if(v<1e8)amt=String(v);}
-    else if(k==="C")amt="";else if(k==="⌫")amt=amt.slice(0,-1);
-    else if(amt.length<8&&!(amt===""&&k==="0"))amt+=k;
+    if(k[0]==="+"){SE.bash();base+=Number(k.slice(1));}
+    else if(k==="C"){base=0;typed="";}
+    else if(k==="⌫")typed=typed.slice(0,-1);
+    else if(typed.length<7&&!(typed===""&&k==="0"))typed+=k;
     render()};
   $("keys").appendChild(b)});
 
@@ -223,9 +228,9 @@ $("ok").onclick=()=>{
   SE.ok();
   const d=new Date();
   const date=`${dkey(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  const r=load();r.unshift({id:Date.now(),date,store,tag:tag||"",amount:Number(amt)});save(r);
-  toast(`${store} ¥${yen(Number(amt))} を記録`);
-  store=tag=null;amt="";render();
+  const r=load();r.unshift({id:Date.now(),date,store,tag:tag||"",amount:total()});save(r);
+  toast(`${store} ¥${yen(total())} を記録`);
+  store=tag=null;base=0;typed="";render();
 };
 function toast(t){const e=$("toast");e.textContent=t;e.hidden=false;clearTimeout(e._t);e._t=setTimeout(()=>e.hidden=true,1600)}
 /* 表表示 */
