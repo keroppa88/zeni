@@ -187,7 +187,7 @@ td:nth-child(3){color:var(--tag);font-size:12px;min-width:5.5em;word-break:keep-
     <div class="center">
       <div class="picked" id="picked"></div>
       <input class="memo-in" id="storeName" type="text" placeholder="店舗名を入力" autocomplete="off" hidden>
-      <input class="memo-in" id="memo" type="text" placeholder="商品名など" autocomplete="off" hidden>
+      <input class="memo-in" id="memo" type="text" placeholder="品名" autocomplete="off" hidden>
       <div class="row">
         <div class="amtbox"><div class="calc" id="calc"></div><div class="amount" id="amount"><small>¥</small>0</div></div>
         <button class="ok" id="ok" disabled>決定</button>
@@ -412,7 +412,7 @@ function pickStore(t){SE.click();store=store===t?null:t;
   if(store){if(storeItem(store).food)auto("食品");(storeItem(store).autoTags||[]).forEach(auto);if(colorOf(store)==="tech")auto("固定");
     if(isFree(store))setTimeout(()=>$("storeName").focus(),0);}
   render()}
-/* 家計簿の白い枠：タップで商品名などのメモ欄を出す（記入タグなしでも可） */
+/* 家計簿の白い枠：タップで品名の入力欄を出す（記入タグなしでも可） */
 let memoOpen=false;
 document.querySelector("#inputView .center").addEventListener("click",e=>{
   if(e.target.closest("button,input"))return;memoOpen=true;render();$("memo").focus()});
@@ -597,7 +597,7 @@ function editCell(td,x){
   const mk=(val,ph,type="text",mode)=>{const i=document.createElement("input");i.className="cell-in";i.type=type;i.value=val;i.placeholder=ph;if(mode)i.inputMode=mode;return i};
   let ins=[];
   if(f==="date")ins=[mk(x.date.slice(0,10),"","date")];
-  if(f==="store")ins=[mk(x.store,"店舗名"),mk(x.memo||"","項目名")];
+  if(f==="store")ins=[mk(x.store,"店舗名"),mk(x.memo||"","品名")];
   if(f==="tags")ins=[mk(tagsOf(x).join("・"),"例：食品・外食")];
   if(f==="amount")ins=[mk(String(x.amount),"金額","text","numeric")];
   td.innerHTML="";ins.forEach(i=>td.appendChild(i));ins[0].focus();
