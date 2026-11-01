@@ -57,6 +57,12 @@ button{touch-action:manipulation}
 .memo-in{width:100%;box-sizing:border-box;font:500 16px var(--sans);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:5px 8px;-webkit-user-select:text;user-select:text}
 .memo-in:focus{outline:2px solid var(--tag);outline-offset:0}
 td small{display:block;font-size:11px;color:var(--muted)}
+td[data-f]{cursor:pointer}
+td.fixed-day{font-family:var(--sans);font-size:12px;font-weight:700;color:var(--tag)}
+tr.month td{background:var(--bg);font:700 11px var(--sans);color:var(--muted);letter-spacing:.06em;padding:5px 12px}
+.cell-in{width:100%;min-width:0;box-sizing:border-box;font:500 16px var(--sans);color:var(--fg);background:var(--bg);border:1px solid var(--accent);border-radius:6px;padding:4px 6px;-webkit-user-select:text;user-select:text}
+.cell-in+.cell-in{margin-top:4px}
+td.editing{padding:4px}
 .picked .ph{color:var(--muted);font-weight:500;background:none;padding:1px 0}
 .row{display:flex;align-items:center;gap:10px}
 .amount{flex:1;min-width:0;font:600 30px var(--mono);font-variant-numeric:tabular-nums;text-align:right;overflow:hidden;white-space:nowrap}
@@ -88,7 +94,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}
 th{position:sticky;top:0;background:var(--surface);text-align:left;font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.06em;padding:8px 6px;border-bottom:1px solid var(--line)}
 td{padding:9px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
 th:first-child,td:first-child{padding-left:12px;white-space:nowrap;font-family:var(--mono);font-variant-numeric:tabular-nums}
-td:nth-child(3){color:var(--tag);font-size:12px}
+td:nth-child(3){color:var(--tag);font-size:12px;min-width:5.5em;word-break:keep-all}
 .num{text-align:right;white-space:nowrap;font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600}
 .chartwrap{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 8px 6px}
 .chart-head{display:flex;justify-content:space-between;align-items:baseline;padding:0 4px}
@@ -162,13 +168,15 @@ const STORE_GROUPS=[
 const STORES=STORE_GROUPS.flatMap(g=>g[1]);
 const CAT=Object.fromEntries(STORE_GROUPS.flatMap(([c,l])=>l.map(n=>[n,c])));
 const MEMO="記入";
-const TAGS=["外食","食品","コンテンツ",MEMO,"非日常気晴らし","非日常必要","必要経費"];
+const TAGS=["外食","食品","コンテンツ",MEMO,"非日常気晴らし","非日常必要","必要経費","固定"];
 const KEY="kakeibo.records.v1";
 let store=null, tags=new Set(), base=0, typed="";
 const total=()=>base+Number(typed||0);
 
 const load=()=>{try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return []}};
 const save=r=>{try{localStorage.setItem(KEY,JSON.stringify(r))}catch(e){}};
+const tagsOf=x=>x.tags||(x.tag?[x.tag]:[]);
+const isFixed=x=>tagsOf(x).includes("固定");
 const yen=n=>n.toLocaleString("ja-JP");
 const $=id=>document.getElementById(id);
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -211,7 +219,10 @@ function chips(el,items,get,set,sound){
 }
 /* スーパーを選ぶとタグ「食品」を自動選択（あとで変更可） */
 const FOOD_DEFAULT=["サンディ","阪急オアシス","KOHYO","イズミヤ","業務スーパー","シェフカワカミ","イオンタウン"];
+(()=>{let ch=false;const r=load().map(x=>{const t=tagsOf(x);
+  if(CAT[x.store]==="tech"&&!t.includes("固定")){ch=true;const {tag,...rest}=x;return {...rest,tags:[...t,"固定"]}}return x});if(ch)save(r)})();
 chips($("stores"),STORES,()=>store,v=>{store=v;if(v&&FOOD_DEFAULT.includes(v))tags.add("食品");
+  if(v&&CAT[v]==="tech")tags.add("固定");
   if(v===STORE_FREE)setTimeout(()=>$("storeName").focus(),0);},()=>SE.click());
 /* 店舗「記入」なら入力した名前を店舗名として使う */
 const storeName=()=>store===STORE_FREE?$("storeName").value.trim():store;
@@ -277,16 +288,46 @@ $("ok").onclick=()=>{
   store=null;tags=new Set();$("memo").value="";$("memo").blur();$("storeName").value="";$("storeName").blur();base=0;typed="";render();
 };
 function toast(t){const e=$("toast");e.textContent=t;e.hidden=false;clearTimeout(e._t);e._t=setTimeout(()=>e.hidden=true,1600)}
-/* 表表示 */
+/* 表表示：古い順。各月の「固定」は1日より前に並べる。セルを押すと編集 */
+const sortKey=x=>isFixed(x)?x.date.slice(0,8)+"00":x.date;
 function renderTable(){
-  const r=load(),tb=$("tbody");tb.innerHTML="";
+  const r=load().sort((a,b)=>sortKey(a)<sortKey(b)?-1:sortKey(a)>sortKey(b)?1:a.id-b.id),tb=$("tbody");tb.innerHTML="";
   if(!r.length){tb.innerHTML='<tr><td colspan="5" class="empty">まだ記録はありません</td></tr>';return}
-  r.forEach(x=>{const tr=document.createElement("tr");
-    const [,mm,dd]=x.date.slice(0,10).split("-");
-    tr.innerHTML=`<td>${Number(mm)}/${Number(dd)}</td><td>${esc(x.store)}${x.memo?`<small>${esc(x.memo)}</small>`:""}</td><td>${esc((x.tags||(x.tag?[x.tag]:[])).join("・"))}</td><td class="num">¥${yen(x.amount)}</td><td></td>`;
+  let month="";
+  r.forEach(x=>{
+    const [yy,mm,dd]=x.date.slice(0,10).split("-");
+    if(yy+mm!==month){month=yy+mm;const h=document.createElement("tr");h.className="month";h.innerHTML=`<td colspan="5">${yy}年${Number(mm)}月</td>`;tb.appendChild(h)}
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td data-f="date"${isFixed(x)?' class="fixed-day"':""}>${isFixed(x)?"固定":`${Number(mm)}/${Number(dd)}`}</td>`+
+      `<td data-f="store">${esc(x.store)}${x.memo?`<small>${esc(x.memo)}</small>`:""}</td>`+
+      `<td data-f="tags">${esc(tagsOf(x).join("・"))}</td><td data-f="amount" class="num">¥${yen(x.amount)}</td><td></td>`;
+    tr.querySelectorAll("td[data-f]").forEach(td=>td.onclick=()=>editCell(td,x));
     const b=document.createElement("button");b.className="del";b.textContent="×";b.setAttribute("aria-label","削除");
     b.onclick=()=>{if(b.classList.contains("c")){save(load().filter(y=>y.id!==x.id));renderTable();renderTotal()}else{b.classList.add("c");b.textContent="削除"}};
     tr.lastChild.appendChild(b);tb.appendChild(tr)});
+}
+/* セル編集：欄の外に出るか Enter で保存、Esc で取り消し */
+function editCell(td,x){
+  if(td.classList.contains("editing"))return;
+  const f=td.dataset.f;td.classList.add("editing");
+  const mk=(val,ph,type="text",mode)=>{const i=document.createElement("input");i.className="cell-in";i.type=type;i.value=val;i.placeholder=ph;if(mode)i.inputMode=mode;return i};
+  let ins=[];
+  if(f==="date")ins=[mk(x.date.slice(0,10),"","date")];
+  if(f==="store")ins=[mk(x.store,"店舗名"),mk(x.memo||"","項目名")];
+  if(f==="tags")ins=[mk(tagsOf(x).join("・"),"例：食品・外食")];
+  if(f==="amount")ins=[mk(String(x.amount),"金額","text","numeric")];
+  td.innerHTML="";ins.forEach(i=>td.appendChild(i));ins[0].focus();
+  let done=false;
+  const finish=ok=>{if(done)return;done=true;
+    if(ok){const r=load(),y=r.find(z=>z.id===x.id);if(y){
+      if(f==="date"&&/^\d{4}-\d{2}-\d{2}$/.test(ins[0].value))y.date=ins[0].value+x.date.slice(10);
+      if(f==="store"&&ins[0].value.trim()){y.store=ins[0].value.trim();y.memo=ins[1].value.trim();}
+      if(f==="tags"){y.tags=ins[0].value.split(/[・,、\s]+/).map(t=>t.trim()).filter(Boolean);delete y.tag;}
+      if(f==="amount"){const v=Number(ins[0].value.replace(/[^0-9]/g,""));if(v>0)y.amount=v;}
+      save(r);}}
+    renderTable();renderTotal()};
+  td.addEventListener("focusout",e=>{if(!td.contains(e.relatedTarget))finish(true)});
+  ins.forEach(i=>i.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();finish(true)}if(e.key==="Escape")finish(false)}));
 }
 /* 画面切替：入力 → 表 → グラフ → 入力（ボタンには次の画面名を表示） */
 const VIEWS=[["inputView","表"],["tableView","グラフ"],["chartView","入力"]];
@@ -295,7 +336,7 @@ $("switch").onclick=()=>{
   view=(view+1)%3;
   VIEWS.forEach(([id],i)=>$(id).hidden=i!==view);
   $("switch").textContent=VIEWS[view][1];
-  if(view===1)renderTable();
+  if(view===1){renderTable();const w=$("tableView");w.scrollTop=w.scrollHeight;}
   if(view===2)renderChart();
 };
 /* 今月の累計折れ線（1日〜月末、今日まで） */
