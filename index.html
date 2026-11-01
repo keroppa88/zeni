@@ -193,6 +193,14 @@ const defaultCfg=()=>({
   stores:STORE_GROUPS.flatMap(([c,l])=>l.map(name=>({name,c}))),
   tags:["外食","食品","コンテンツ",MEMO,"非日常気晴らし","非日常必要","必要経費","固定"].map(name=>({name,c:name===MEMO?"free":"beige"}))});
 let cfg=(()=>{try{const c=JSON.parse(localStorage.getItem(CFG_KEY));if(c&&c.stores&&c.tags)return c}catch(e){}return defaultCfg()})();
+const FOOD_DEFAULT=["サンディ","阪急オアシス","KOHYO","イズミヤ","業務スーパー","シェフカワカミ","イオンタウン"];
+if(!cfg.v){ // 初回だけ：記入・スーパーに印を付ける
+  cfg.stores.forEach(x=>{if(x.name===STORE_FREE)x.free=true;if(FOOD_DEFAULT.includes(x.name))x.food=true});
+  cfg.tags.forEach(x=>{if(x.name===MEMO)x.memo=true});cfg.v=2;
+  try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg))}catch(e){}}
+const storeItem=n=>cfg.stores.find(x=>x.name===n)||{};
+const isFree=n=>!!storeItem(n).free;
+const memoName=()=>(cfg.tags.find(x=>x.memo)||{}).name;
 const saveCfg=()=>{try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg))}catch(e){}};
 const colorOf=name=>(cfg.stores.find(x=>x.name===name)||{}).c;
 const KEY="kakeibo.records.v1";
@@ -240,18 +248,17 @@ const SE={
 (()=>{let last=0;const el=document.getElementById("stores");
   el.addEventListener("scroll",()=>{if(Math.abs(el.scrollLeft-last)>=36){last=el.scrollLeft;SE.tick()}},{passive:true})})();
 /* スーパーを選ぶとタグ「食品」、紫の店舗はタグ「固定」を自動選択（あとで変更可） */
-const FOOD_DEFAULT=["サンディ","阪急オアシス","KOHYO","イズミヤ","業務スーパー","シェフカワカミ","イオンタウン"];
 (()=>{let ch=false;const r=load().map(x=>{const t=tagsOf(x);
   if(CAT[x.store]==="tech"&&!t.includes("固定")){ch=true;const {tag,...rest}=x;return {...rest,tags:[...t,"固定"]}}return x});if(ch)save(r)})();
 function pickStore(t){SE.click();store=store===t?null:t;
-  if(store){if(FOOD_DEFAULT.includes(store))tags.add("食品");if(colorOf(store)==="tech")tags.add("固定");
-    if(store===STORE_FREE)setTimeout(()=>$("storeName").focus(),0);}
+  if(store){if(storeItem(store).food)tags.add("食品");if(colorOf(store)==="tech")tags.add("固定");
+    if(isFree(store))setTimeout(()=>$("storeName").focus(),0);}
   render()}
-function pickTag(t){tags.has(t)?tags.delete(t):tags.add(t);render();if(t===MEMO&&tags.has(t))$("memo").focus()}
+function pickTag(t){tags.has(t)?tags.delete(t):tags.add(t);render();if(t===memoName()&&tags.has(t))$("memo").focus()}
 /* 店舗「記入」なら入力した名前を店舗名として使う */
-const storeName=()=>store===STORE_FREE?$("storeName").value.trim():store;
+const storeName=()=>isFree(store)?$("storeName").value.trim():store;
 $("storeName").addEventListener("input",()=>render());
-const tagList=()=>cfg.tags.map(x=>x.name).filter(t=>t!==MEMO&&tags.has(t));
+const tagList=()=>cfg.tags.map(x=>x.name).filter(t=>t!==memoName()&&tags.has(t));
 
 let moving=null; // {kind,name}
 function renderChips(){
@@ -300,9 +307,20 @@ function openMenu(kind,name){
 function swatchesHtml(cur){return `<div class="swatches">${COLORS.map(([c,ja])=>`<button class="chip" data-c="${c}" aria-pressed="${c===cur}">${ja}</button>`).join("")}</div>`}
 function openEdit(kind,name){
   const item=cfg[kind].find(x=>x.name===name);if(!item)return closeSheet();
-  sheet(`<h3>${esc(name)} の色</h3>${swatchesHtml(item.c)}<div class="acts"><button class="act wide" data-a="close">閉じる</button></div>`);
-  $("sheet").querySelectorAll(".swatches button").forEach(b=>b.onclick=()=>{item.c=b.dataset.c;saveCfg();closeSheet();renderChips()});
+  let c=item.c;
+  sheet(`<h3>${KIND_JA[kind]}の編集</h3><input id="editName" type="text" autocomplete="off">${swatchesHtml(c)}
+    <div class="acts"><button class="act" data-a="close">やめる</button><button class="act main" data-a="save" style="grid-column:span 2">保存</button></div>`);
+  $("editName").value=item.name;
+  const sw=$("sheet").querySelectorAll(".swatches button");
+  sw.forEach(b=>b.onclick=()=>{c=b.dataset.c;sw.forEach(x=>x.setAttribute("aria-pressed",x===b))});
   $("sheet").querySelector("[data-a=close]").onclick=closeSheet;
+  $("sheet").querySelector("[data-a=save]").onclick=()=>{
+    const nn=$("editName").value.trim();if(!nn)return $("editName").focus();
+    if(nn!==item.name&&cfg[kind].some(x=>x.name===nn)){toast("同じ名前があります");return}
+    // 選択中なら選択も新しい名前へ（これまでの記録はそのまま）
+    if(kind==="stores"&&store===item.name)store=nn;
+    if(kind==="tags"&&tags.has(item.name)){tags.delete(item.name);tags.add(nn)}
+    item.name=nn;item.c=c;saveCfg();closeSheet();renderChips()};
 }
 function openNew(kind){
   let c=kind==="stores"?"super":"beige";
@@ -328,8 +346,8 @@ $("moveCancel").onclick=endMove;
 function render(){
   document.querySelectorAll("#stores .chip[data-name]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.name===store));
   document.querySelectorAll("#tags .chip[data-name]").forEach(b=>b.setAttribute("aria-pressed",tags.has(b.dataset.name)));
-  $("memo").hidden=!tags.has(MEMO);
-  $("storeName").hidden=store!==STORE_FREE;
+  $("memo").hidden=!tags.has(memoName());
+  $("storeName").hidden=!isFree(store);
   $("picked").innerHTML=(storeName()?`<span>${esc(storeName())}</span>`:`<span class="ph">店舗を選択</span>`)+(tagList().length?tagList().map(t=>`<span>${t}</span>`).join(""):`<span class="ph">タグなし</span>`);
   $("amount").innerHTML=`<small>¥</small>${yen(total())}`;
   $("calc").textContent=(base&&typed)?`${yen(base)} ＋ ${yen(Number(typed))}`:"";
@@ -375,7 +393,7 @@ $("ok").onclick=()=>{
   SE.ok();
   const d=new Date();
   const date=`${dkey(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  const r=load();const memo=tags.has(MEMO)?$("memo").value.trim():"";
+  const r=load();const memo=tags.has(memoName())?$("memo").value.trim():"";
   r.unshift({id:Date.now(),date,store:storeName(),tags:tagList(),memo,amount:total()});save(r);
   toast(`${storeName()} ¥${yen(total())} を記録`);
   store=null;tags=new Set();$("memo").value="";$("memo").blur();$("storeName").value="";$("storeName").blur();base=0;typed="";render();
