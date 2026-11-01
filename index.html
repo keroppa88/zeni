@@ -340,15 +340,19 @@ const FKEY="kakeibo.food.records.v1", FCFG_KEY="kakeibo.food.config.v1";
 const fload=()=>{try{return JSON.parse(localStorage.getItem(FKEY))||[]}catch(e){return []}};
 const fsave=r=>{try{localStorage.setItem(FKEY,JSON.stringify(r))}catch(e){}};
 let fcfg=(()=>{try{const c=JSON.parse(localStorage.getItem(FCFG_KEY));if(c&&c.foods&&c.ftags)return c}catch(e){}
-  const auto={"焼飯":["必然食"],"卵":["必然食"],"鶏肉":["必然食"],"きゅうり":["必然食"],"ピーナッツ":["半必食"],"ヨーグルト":["半必食"],"菓子":["嗜好品"]};
-  return {foods:["焼飯","卵","鶏肉","きゅうり","ピーナッツ","ヨーグルト","コーヒー","サプリ"].map(name=>({name,c:"food",autoTags:auto[name]})),
+  const auto={"焼飯":["必然食"],"卵":["必然食"],"鶏肉":["必然食"],"きゅうり":["必然食"],"ピーナッツ":["半必食"],"ヨーグルト":["半必食"],"コーヒー":["半必食"],"菓子":["嗜好品"]};
+  return {foods:["焼飯","卵","鶏肉","きゅうり","ピーナッツ","ヨーグルト","コーヒー","サプリ","菓子"].map(name=>({name,c:"food",autoTags:name==="菓子"?["菓子"]:auto[name]})),
     ftags:["必然食","半必食","菓子","嗜好品"].map(name=>({name,c:"beige",autoTags:auto[name]}))}})();
 const saveF=()=>{try{localStorage.setItem(FCFG_KEY,JSON.stringify(fcfg))}catch(e){}};
+if(!fcfg.v){ // 既定値の追加：食べたもの「菓子」（タグ菓子）、コーヒー→半必食
+  const f=fcfg.foods.find(x=>x.name==="菓子");if(f)f.autoTags=["菓子"];else fcfg.foods.push({name:"菓子",c:"food",autoTags:["菓子"]});
+  const c=fcfg.foods.find(x=>x.name==="コーヒー");if(c&&!(c.autoTags||[]).length)c.autoTags=["半必食"];
+  fcfg.v=2;saveF()}
 let foods=new Set(), ftags=new Set(), fOff=new Set();
 document.querySelector(".fcenter").addEventListener("click",e=>{if(!e.target.closest("button"))$("fnote").focus()});
 const fAuto=()=>{const a=new Set();
   fcfg.foods.forEach(x=>{if(foods.has(x.name))(x.autoTags||[]).forEach(t=>a.add(t))});
-  fcfg.ftags.forEach(x=>{if(ftags.has(x.name))(x.autoTags||[]).forEach(t=>a.add(t))});return a};
+  for(let i=0;i<3;i++)fcfg.ftags.forEach(x=>{if((ftags.has(x.name)||a.has(x.name))&&!fOff.has(x.name))(x.autoTags||[]).forEach(t=>a.add(t))});return a};
 const fTagsOn=()=>{const a=fAuto();return new Set(fcfg.ftags.map(x=>x.name).filter(n=>!fOff.has(n)&&(ftags.has(n)||a.has(n))))};
 const toggle=(set,t)=>set.has(t)?set.delete(t):set.add(t);
 function renderFood(){
