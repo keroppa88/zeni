@@ -113,9 +113,16 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .switch{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:12px;font:700 14px var(--sans);padding:0 14px}
 .view{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px}
 #inputView,#foodInput{gap:7px}
-/* 最上段：銭ログ／食べログ */
-.modebar{flex:none;display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px;border-radius:9px;background:var(--line)}
+/* 最上段：かねログ／食べログ */
+.modebar{flex:none;display:grid;grid-template-columns:1fr 1fr auto;gap:3px;padding:3px;border-radius:9px;background:var(--line)}
 .modebar button{border:none;border-radius:7px;background:none;color:var(--muted);font:700 12px var(--sans);padding:4px 0;letter-spacing:.08em}
+.modebar .gear{padding:0 9px;font-size:15px;letter-spacing:0;color:var(--muted)}
+.monthbar{flex:none;display:grid;grid-template-columns:auto 1fr auto;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.monthbar b{text-align:center;font-size:14px}
+.monthbar button{border:none;background:none;color:var(--fg);font:700 20px var(--sans);padding:4px 18px}
+.monthbar button:disabled{opacity:.25}
+.sheet textarea{font:13px var(--mono);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;height:38vh;resize:none;-webkit-user-select:text;user-select:text;white-space:pre;overflow:auto}
+.sheet .note{margin:0;font-size:12px;color:var(--muted);line-height:1.6}
 .modebar button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .fdate{flex:1;display:flex;align-items:center;min-height:40px;font:700 15px var(--sans);padding:0 4px}
 /* 食べログ */
@@ -173,12 +180,14 @@ td:nth-child(3){color:var(--tag);font-size:12px;min-width:5.5em;word-break:keep-
 <body>
 
 <div class="app">
-  <div class="modebar" id="modebar"><button data-mode="kakei" aria-pressed="true">銭ログ</button><button data-mode="food" aria-pressed="false">食べログ</button></div>
+  <div class="modebar" id="modebar"><button data-mode="kakei" aria-pressed="true">かねログ</button><button data-mode="food" aria-pressed="false">食べログ</button><button class="gear" id="gear" aria-label="設定">⚙︎</button></div>
   <div class="top">
     <div class="fdate" id="fdate" hidden></div>
     <button class="total" id="total"><span id="tLabel"></span><b id="tVal"></b><span class="split"><span class="e"><i>エンゲル</i><span id="tEngel"></span></span><span class="m"><i>マルクス</i><span id="tMarx"></span></span></span></button>
     <button class="switch" id="switch">表</button>
   </div>
+
+  <div class="monthbar" id="monthBar" hidden><button id="mPrev" aria-label="前の月">‹</button><b id="mLabel"></b><button id="mNext" aria-label="次の月">›</button></div>
 
   <div class="view" id="inputView">
     <div class="stores" id="stores"></div>
@@ -375,12 +384,11 @@ $("fok").onclick=()=>{
 };
 /* 食べログの表：古い順、日付ごと。セルを押すと編集 */
 function renderFoodTable(){
-  const r=fload().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:a.id-b.id),tb=$("ftbody");tb.innerHTML="";
-  if(!r.length){tb.innerHTML='<tr><td colspan="4" class="empty">まだ記録はありません</td></tr>';return}
+  const r=fload().filter(x=>x.date.startsWith(ymKey())).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:a.id-b.id),tb=$("ftbody");tb.innerHTML="";
+  if(!r.length){tb.innerHTML='<tr><td colspan="4" class="empty">この月の記録はありません</td></tr>';return}
   let month="";
   r.forEach(x=>{
     const [yy,mm,dd]=x.date.slice(0,10).split("-");
-    if(yy+mm!==month){month=yy+mm;const h=document.createElement("tr");h.className="month";h.innerHTML=`<td colspan="4">${yy}年${Number(mm)}月</td>`;tb.appendChild(h)}
     const tr=document.createElement("tr");
     tr.innerHTML=`<td data-f="date">${Number(mm)}/${Number(dd)}</td><td data-f="foods">${esc(x.foods.join("・"))}${x.note?`<small>${esc(x.note)}</small>`:""}</td><td data-f="tags">${esc((x.tags||[]).join("・"))}</td><td></td>`;
     tr.querySelectorAll("td[data-f]").forEach(td=>td.onclick=()=>editFoodCell(td,x));
@@ -416,7 +424,7 @@ function pickStore(t){SE.click();store=store===t?null:t;
   if(store){if(storeItem(store).food)auto("食品");(storeItem(store).autoTags||[]).forEach(auto);if(colorOf(store)==="tech")auto("固定");
     if(isFree(store))setTimeout(()=>$("storeName").focus(),0);}
   render()}
-/* 銭ログの白い枠：タップで品名の入力欄を出す（記入タグなしでも可） */
+/* かねログの白い枠：タップで品名の入力欄を出す（記入タグなしでも可） */
 let memoOpen=false;
 document.querySelector("#inputView .center").addEventListener("click",e=>{
   if(e.target.closest("button,input"))return;memoOpen=true;render();$("memo").focus()});
@@ -578,13 +586,16 @@ $("ok").onclick=()=>{
 function toast(t){const e=$("toast");e.textContent=t;e.hidden=false;clearTimeout(e._t);e._t=setTimeout(()=>e.hidden=true,1600)}
 /* 表表示：古い順。各月の「固定」は1日より前に並べる。セルを押すと編集 */
 const sortKey=x=>isFixed(x)?x.date.slice(0,8)+"00":x.date;
+/* 表・グラフで見る月（‹ › で切替）。データ出力もこの月 */
+let vy=new Date().getFullYear(), vm=new Date().getMonth();
+const ymKey=()=>`${vy}-${pad(vm+1)}`;
+function shiftMonth(d){vm+=d;if(vm<0){vm=11;vy--}if(vm>11){vm=0;vy++}showView()}
 function renderTable(){
-  const r=load().sort((a,b)=>sortKey(a)<sortKey(b)?-1:sortKey(a)>sortKey(b)?1:a.id-b.id),tb=$("tbody");tb.innerHTML="";
-  if(!r.length){tb.innerHTML='<tr><td colspan="5" class="empty">まだ記録はありません</td></tr>';return}
+  const r=load().filter(x=>x.date.startsWith(ymKey())).sort((a,b)=>sortKey(a)<sortKey(b)?-1:sortKey(a)>sortKey(b)?1:a.id-b.id),tb=$("tbody");tb.innerHTML="";
+  if(!r.length){tb.innerHTML='<tr><td colspan="5" class="empty">この月の記録はありません</td></tr>';return}
   let month="";
   r.forEach(x=>{
     const [yy,mm,dd]=x.date.slice(0,10).split("-");
-    if(yy+mm!==month){month=yy+mm;const h=document.createElement("tr");h.className="month";h.innerHTML=`<td colspan="5">${yy}年${Number(mm)}月</td>`;tb.appendChild(h)}
     const tr=document.createElement("tr");
     tr.innerHTML=`<td data-f="date"${isFixed(x)?' class="fixed-day"':""}>${isFixed(x)?"固定":`${Number(mm)}/${Number(dd)}`}</td>`+
       `<td data-f="store">${esc(x.store)}${x.memo?`<small>${esc(x.memo)}</small>`:""}</td>`+
@@ -627,15 +638,95 @@ function showView(){
   ALL_VIEWS.forEach(v=>$(v).hidden=v!==id);
   $("switch").textContent=vs[view][1];
   $("total").hidden=appMode!=="kakei"; $("fdate").hidden=appMode!=="food";
-  $("modebar").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.mode===appMode));
+  $("modebar").querySelectorAll("button[data-mode]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.mode===appMode));
+  $("monthBar").hidden=!["tableView","chartView","foodTable"].includes(id);
+  $("mLabel").textContent=`${vy}年${vm+1}月`;
   if(id==="tableView"){renderTable();const w=$("tableView");w.scrollTop=w.scrollHeight;}
   if(id==="chartView")renderChart();
   if(id==="foodTable"){renderFoodTable();const w=$("foodTable");w.scrollTop=w.scrollHeight;}
   if(id==="foodInput")renderFood();
 }
 $("switch").onclick=()=>{view=(view+1)%VIEWS[appMode].length;showView()};
-/* 銭ログ／食べログの切替（どちらを開いていたかはこの端末に記憶） */
-$("modebar").querySelectorAll("button").forEach(b=>b.onclick=()=>{
+/* かねログ／食べログの切替（どちらを開いていたかはこの端末に記憶） */
+/* ===== 設定：データ出力・入力 =====
+ 書式（タブ区切り、1行1件）
+  #かねログ 2026-11
+  日時	店舗	タグ	品名	金額
+  2026-11-01 10:00	サンディ	食品		1150
+  #食べログ 2026-11
+  日時	食べたもの	タグ	メモ
+  2026-11-01 17:20	菓子	菓子・嗜好品	ポテチ
+ タグ・食べたものは「・」区切り。見出し行（#〜、日時〜）は省略可。省略時は今開いている側に入る */
+const LOGJA={kakei:"かねログ",food:"食べログ"};
+const cell=v=>String(v??"").replace(/[\t\r\n]+/g," ");
+function exportText(){
+  const k=ymKey();
+  if(appMode==="kakei"){
+    const r=load().filter(x=>x.date.startsWith(k)).sort((a,b)=>sortKey(a)<sortKey(b)?-1:1);
+    return [`#かねログ ${k}`,"日時\t店舗\tタグ\t品名\t金額",...r.map(x=>[x.date,x.store,tagsOf(x).join("・"),x.memo||"",x.amount].map(cell).join("\t"))].join("\n")}
+  const r=fload().filter(x=>x.date.startsWith(k)).sort((a,b)=>a.date<b.date?-1:1);
+  return [`#食べログ ${k}`,"日時\t食べたもの\tタグ\tメモ",...r.map(x=>[x.date,x.foods.join("・"),(x.tags||[]).join("・"),x.note||""].map(cell).join("\t"))].join("\n")}
+function importText(text){
+  let kind=appMode,kAdd=[],fAdd=[],bad=0,dup=0;
+  const K=load(),F=fload();
+  const kSeen=new Set(K.map(x=>[x.date,x.store,x.amount,tagsOf(x).join("・"),x.memo||""].join("|")));
+  const fSeen=new Set(F.map(x=>[x.date,x.foods.join("・"),(x.tags||[]).join("・"),x.note||""].join("|")));
+  const list=v=>String(v||"").split(/[・,、]/).map(t=>t.trim()).filter(Boolean);
+  text.split(/\r?\n/).forEach((line,i)=>{
+    const t=line.trim();if(!t)return;
+    if(t.startsWith("#")){if(t.includes("食"))kind="food";else if(t.includes("かね")||t.includes("銭"))kind="kakei";return}
+    if(t.startsWith("日時"))return;
+    const c=line.split("\t").map(v=>v.trim());
+    let dt=c[0]||"";if(/^\d{4}-\d{2}-\d{2}$/.test(dt))dt+=" 00:00";
+    if(!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(dt)){bad++;return}
+    if(kind==="kakei"){
+      const amount=Number(String(c[4]||"").replace(/[^0-9]/g,""));
+      if(!c[1]||!(amount>0)){bad++;return}
+      const rec={id:Date.now()+i,date:dt,store:c[1],tags:list(c[2]),memo:c[3]||"",amount};
+      const key=[rec.date,rec.store,rec.amount,rec.tags.join("・"),rec.memo].join("|");
+      if(kSeen.has(key)){dup++;return}kSeen.add(key);kAdd.push(rec);
+    }else{
+      const fs=list(c[1]);if(!fs.length){bad++;return}
+      const rec={id:Date.now()+i,date:dt,foods:fs,tags:list(c[2]),note:c[3]||""};
+      const key=[rec.date,rec.foods.join("・"),rec.tags.join("・"),rec.note].join("|");
+      if(fSeen.has(key)){dup++;return}fSeen.add(key);fAdd.push(rec);
+    }});
+  if(kAdd.length)save([...kAdd,...K]);
+  if(fAdd.length)fsave([...fAdd,...F]);
+  return {k:kAdd.length,f:fAdd.length,dup,bad};
+}
+$("gear").onclick=()=>{
+  if(moving)endMove();
+  sheet(`<h3>設定</h3><div class="acts">
+    <button class="act" data-a="in" style="grid-column:span 3">データ入力</button>
+    <button class="act" data-a="out" style="grid-column:span 3">データ出力（${LOGJA[appMode]}・${vy}年${vm+1}月）</button>
+    <button class="act wide" data-a="close">閉じる</button></div>`);
+  $("sheet").querySelector("[data-a=close]").onclick=closeSheet;
+  $("sheet").querySelector("[data-a=out]").onclick=()=>{
+    const txt=exportText();
+    sheet(`<h3>データ出力</h3><p class="note" id="copyNote">コピーしています…</p><textarea id="outText" readonly></textarea>
+      <div class="acts"><button class="act" data-a="copy" style="grid-column:span 2">もう一度コピー</button><button class="act" data-a="close">閉じる</button></div>`);
+    $("outText").value=txt;
+    const copy=()=>{const ok=()=>$("copyNote").textContent=`${LOGJA[appMode]}・${vy}年${vm+1}月の${txt.split("\n").length-2}件をコピーしました。メモ帳などに貼り付けて保存できます。`;
+      const ng=()=>{$("copyNote").textContent="自動でコピーできませんでした。下の文字を長押しして「すべてを選択」→「コピー」してください。";$("outText").focus();$("outText").select()};
+      try{navigator.clipboard.writeText(txt).then(ok,ng)}catch(e){ng()}};
+    copy();
+    $("sheet").querySelector("[data-a=copy]").onclick=copy;
+    $("sheet").querySelector("[data-a=close]").onclick=closeSheet};
+  $("sheet").querySelector("[data-a=in]").onclick=()=>{
+    sheet(`<h3>データ入力</h3><p class="note">データ出力でコピーした文字をそのまま貼り付けて「OK」。同じ記録がすでにあるものは入れません。</p>
+      <textarea id="inText" placeholder="ここに貼り付け"></textarea>
+      <div class="acts"><button class="act" data-a="close">やめる</button><button class="act main" data-a="ok" style="grid-column:span 2">OK</button></div>`);
+    $("sheet").querySelector("[data-a=close]").onclick=closeSheet;
+    $("sheet").querySelector("[data-a=ok]").onclick=()=>{
+      const t=$("inText").value;if(!t.trim())return $("inText").focus();
+      const r=importText(t);closeSheet();showView();renderTotal();
+      const parts=[];if(r.k)parts.push(`かねログ ${r.k}件`);if(r.f)parts.push(`食べログ ${r.f}件`);
+      toast((parts.length?parts.join("・")+"を追加":"追加はありません")+(r.dup?`（重複 ${r.dup}件）`:"")+(r.bad?`（読めない行 ${r.bad}件）`:""))};
+    setTimeout(()=>$("inText").focus(),50)};
+};
+$("mPrev").onclick=()=>shiftMonth(-1);$("mNext").onclick=()=>shiftMonth(1);
+$("modebar").querySelectorAll("button[data-mode]").forEach(b=>b.onclick=()=>{
   if(moving)endMove();appMode=b.dataset.mode;view=0;try{localStorage.setItem("kakeibo.mode",appMode)}catch(e){};showView()});
 try{if(localStorage.getItem("kakeibo.mode")==="food")appMode="food"}catch(e){}
 /* 今月のグラフ：累計／エンゲル／マルクスを重ねて表示。累積折れ線 ⇔ 日毎の棒 */
@@ -646,7 +737,9 @@ $("series").querySelectorAll("button").forEach(b=>b.onclick=()=>{const k=b.datas
 $("chartMode").querySelectorAll("button").forEach(b=>b.onclick=()=>{chartMode=b.dataset.m;renderChart()});
 function renderChart(){
   const svg=$("chart"),W=svg.clientWidth||340,H=svg.clientHeight||300;
-  const n=new Date(),y=n.getFullYear(),m=n.getMonth(),last=new Date(y,m+1,0).getDate(),today=n.getDate();
+  const n=new Date(),y=vy,m=vm,last=new Date(y,m+1,0).getDate();
+  const cmp=(y*12+m)-(n.getFullYear()*12+n.getMonth()), isCur=cmp===0;
+  const today=isCur?n.getDate():cmp<0?last:0; // 過去の月は月末まで、先の月は記録がある日まで
   const daily={total:Array(last+1).fill(0),engel:Array(last+1).fill(0),marx:Array(last+1).fill(0)};
   load().forEach(x=>{const d=x.date.slice(0,10).split("-").map(Number);if(d[0]!==y||d[1]!==m+1)return;
     const day=isFixed(x)?0:d[2];
@@ -654,7 +747,7 @@ function renderChart(){
   const cum={};for(const k in daily){cum[k]=[daily[k][0]];for(let d=1;d<=last;d++)cum[k][d]=cum[k][d-1]+daily[k][d]}
   // 「今日」か「今月で記録がある最後の日」の遅いほうまで
   let end=today;for(let d=last;d>today;d--)if(daily.total[d]){end=d;break}
-  $("chartTitle").textContent=`${m+1}月`;
+  $("chartTitle").textContent=isCur?"今月":"";
   $("chartMode").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===chartMode));
   $("series").querySelectorAll("button").forEach(b=>{b.setAttribute("aria-pressed",chartSel.has(b.dataset.s));b.querySelector("b").textContent=`¥${yen(cum[b.dataset.s][last])}`});
   const sel=["total","engel","marx"].filter(k=>chartSel.has(k));
@@ -669,7 +762,7 @@ function renderChart(){
   for(let v=0;v<=top;v+=step){g+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${L-6}" y="${Y(v)+3}" text-anchor="end">${v>=10000?(v/10000)+"万":yen(v)}</text>`}
   [1,8,15,22,last].forEach(d=>g+=`<text x="${X(d)}" y="${H-6}" text-anchor="middle">${d}日</text>`);
   g+=`<text x="${X(0)}" y="${H-6}" text-anchor="middle">固定</text><line class="grid" x1="${L+Z-2}" x2="${L+Z-2}" y1="${T}" y2="${T+ph}"/>`;
-  if(end>today||bar)g+=`<line class="grid" x1="${X(today)}" x2="${X(today)}" y1="${T}" y2="${T+ph}" stroke-dasharray="3 3"/><text x="${X(today)+4}" y="${T+8}" text-anchor="start">今日</text>`;
+  if(isCur&&(end>today||bar))g+=`<line class="grid" x1="${X(today)}" x2="${X(today)}" y1="${T}" y2="${T+ph}" stroke-dasharray="3 3"/><text x="${X(today)+4}" y="${T+8}" text-anchor="start">今日</text>`;
   if(bar){
     // 棒：累計は薄い帯、エンゲル→マルクスの順に下から積む（両方で累計と同じ高さ）
     const w=Math.max(2,slot*.7),w0=Math.min(18,Z*.5);
