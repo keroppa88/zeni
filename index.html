@@ -179,10 +179,10 @@ const STORE_GROUPS=[
   ["super",["サンディ","阪急オアシス","KOHYO","イズミヤ","業務スーパー","シェフカワカミ","イオンタウン","スギ薬局","ジャパン","MEGAドン・キホーテ"]],
   ["conv",["ファミリーマート","自動販売機"]],
   ["food",["マクドナルド","なか卯","カフェ・ド・クリエ","バーガーキング","モスバーガー"]],
-  ["amzn",["Amazon通販","Amazonプライム"]],
+  ["amzn",["Amazon通販"]],
   ["media",["Amazon Downloads","ブックオフ"]],
   ["life",["ニトリ","メルカリ"]],
-  ["tech",["Anthropic（Claude）","OpenAI（ChatGPT）","Microsoft","Google Cloud","Apple","J-Quants API","IIJ","転職会議"]],
+  ["tech",["アンソロピック","オープンAI","Microsoft","Google","Apple","J-Quants API","IIJ"]],
 ];
 const CAT=Object.fromEntries(STORE_GROUPS.flatMap(([c,l])=>l.map(n=>[n,c])));
 const MEMO="記入";
@@ -201,6 +201,11 @@ if(!cfg.v){ // 初回だけ：記入・スーパーに印を付ける
 if(cfg.v===2){ // ファミリーマート → タグ「コンビニ」を自動選択
   if(!cfg.tags.some(x=>x.name==="コンビニ")){const i=cfg.tags.findIndex(x=>x.name==="食品");cfg.tags.splice(i<0?cfg.tags.length:i+1,0,{name:"コンビニ",c:"conv"})}
   cfg.stores.forEach(x=>{if(x.name==="ファミリーマート")x.autoTags=["コンビニ"]});cfg.v=3;
+  try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg))}catch(e){}}
+if(cfg.v===3){ // 店舗の整理：改名・削除（これまでの記録はそのまま）
+  const ren={"Anthropic（Claude）":"アンソロピック","OpenAI（ChatGPT）":"オープンAI","Google Cloud":"Google"};
+  cfg.stores=cfg.stores.filter(x=>!["転職会議","Amazonプライム"].includes(x.name));
+  cfg.stores.forEach(x=>{if(ren[x.name]&&!cfg.stores.some(y=>y.name===ren[x.name]))x.name=ren[x.name]});cfg.v=4;
   try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg))}catch(e){}}
 const storeItem=n=>cfg.stores.find(x=>x.name===n)||{};
 const isFree=n=>!!storeItem(n).free;
@@ -254,11 +259,15 @@ const SE={
 /* スーパーを選ぶとタグ「食品」、紫の店舗はタグ「固定」を自動選択（あとで変更可） */
 (()=>{let ch=false;const r=load().map(x=>{const t=tagsOf(x);
   if(CAT[x.store]==="tech"&&!t.includes("固定")){ch=true;const {tag,...rest}=x;return {...rest,tags:[...t,"固定"]}}return x});if(ch)save(r)})();
+/* 店舗で自動的に付けたタグ。店舗を変えたら外す（手で付けたタグは残す） */
+let autoAdded=new Set();
 function pickStore(t){SE.click();store=store===t?null:t;
-  if(store){if(storeItem(store).food)tags.add("食品");(storeItem(store).autoTags||[]).forEach(t=>tags.add(t));if(colorOf(store)==="tech")tags.add("固定");
+  autoAdded.forEach(x=>tags.delete(x));autoAdded=new Set();
+  const auto=x=>{if(!tags.has(x)){tags.add(x);autoAdded.add(x)}};
+  if(store){if(storeItem(store).food)auto("食品");(storeItem(store).autoTags||[]).forEach(auto);if(colorOf(store)==="tech")auto("固定");
     if(isFree(store))setTimeout(()=>$("storeName").focus(),0);}
   render()}
-function pickTag(t){tags.has(t)?tags.delete(t):tags.add(t);render();if(t===memoName()&&tags.has(t))$("memo").focus()}
+function pickTag(t){autoAdded.delete(t);tags.has(t)?tags.delete(t):tags.add(t);render();if(t===memoName()&&tags.has(t))$("memo").focus()}
 /* 店舗「記入」なら入力した名前を店舗名として使う */
 const storeName=()=>isFree(store)?$("storeName").value.trim():store;
 $("storeName").addEventListener("input",()=>render());
@@ -400,7 +409,7 @@ $("ok").onclick=()=>{
   const r=load();const memo=tags.has(memoName())?$("memo").value.trim():"";
   r.unshift({id:Date.now(),date,store:storeName(),tags:tagList(),memo,amount:total()});save(r);
   toast(`${storeName()} ¥${yen(total())} を記録`);
-  store=null;tags=new Set();$("memo").value="";$("memo").blur();$("storeName").value="";$("storeName").blur();base=0;typed="";render();
+  store=null;tags=new Set();autoAdded=new Set();$("memo").value="";$("memo").blur();$("storeName").value="";$("storeName").blur();base=0;typed="";render();
 };
 function toast(t){const e=$("toast");e.textContent=t;e.hidden=false;clearTimeout(e._t);e._t=setTimeout(()=>e.hidden=true,1600)}
 /* 表表示：古い順。各月の「固定」は1日より前に並べる。セルを押すと編集 */
