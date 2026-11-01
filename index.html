@@ -272,7 +272,8 @@ if(cfg.v===3){ // 店舗の整理：改名・削除（これまでの記録は�
   cfg.stores.forEach(x=>{if(ren[x.name]&&!cfg.stores.some(y=>y.name===ren[x.name]))x.name=ren[x.name]});cfg.v=4;
   try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg))}catch(e){}}
 if(cfg.v===4){ // 店舗の整理2：改名・削除（これまでの記録はそのまま）
-  const ren={"イオンタウン":"イオンタウン","MEGAドン・キホーテ":"ドンキホーテ"};
+  const ren={"MEGAドン・キホーテ":"ドンキホーテ"};
+  cfg.stores.forEach(x=>{if(x.name.startsWith("イオンタウン")&&x.name!=="イオンタウン")ren[x.name]="イオンタウン"});
   cfg.stores=cfg.stores.filter(x=>!["バーガーキング","ニトリ"].includes(x.name));
   cfg.stores.forEach(x=>{if(ren[x.name]&&!cfg.stores.some(y=>y.name===ren[x.name]))x.name=ren[x.name]});cfg.v=5;
   try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg))}catch(e){}}
