@@ -439,7 +439,9 @@ function renderChart(){
   const daily=Array(last+1).fill(0);
   load().forEach(x=>{const d=x.date.slice(0,10).split("-").map(Number);if(d[0]===y&&d[1]===m+1)daily[d[2]]+=x.amount});
   const cum=[0];for(let d=1;d<=last;d++)cum[d]=cum[d-1]+daily[d];
-  const max=cum[today];
+  // 線は「今日」か「今月で記録がある最後の日」の遅いほうまで
+  let end=today;for(let d=last;d>today;d--)if(daily[d]){end=d;break}
+  const max=cum[end];
   $("chartTitle").textContent=`${m+1}月の累計`;$("chartSum").textContent=`¥${yen(max)}`;
   // 目盛り：1,2,5系のきりのいい刻み
   const raw=Math.max(max,1000)/4,p10=10**Math.floor(Math.log10(raw)),step=[1,2,5,10].map(k=>k*p10).find(v=>v>=raw);
@@ -449,10 +451,11 @@ function renderChart(){
   let g="";
   for(let v=0;v<=top;v+=step){g+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${L-6}" y="${Y(v)+3}" text-anchor="end">${v>=10000?(v/10000)+"万":yen(v)}</text>`}
   [1,8,15,22,last].forEach(d=>g+=`<text x="${X(d)}" y="${H-6}" text-anchor="middle">${d}日</text>`);
-  const pts=[];for(let d=1;d<=today;d++)pts.push(`${X(d).toFixed(1)},${Y(cum[d]).toFixed(1)}`);
-  g+=`<polygon class="area" points="${X(1)},${Y(0)} ${pts.join(" ")} ${X(today)},${Y(0)}"/>`;
+  const pts=[];for(let d=1;d<=end;d++)pts.push(`${X(d).toFixed(1)},${Y(cum[d]).toFixed(1)}`);
+  g+=`<polygon class="area" points="${X(1)},${Y(0)} ${pts.join(" ")} ${X(end)},${Y(0)}"/>`;
+  if(end>today)g+=`<line class="grid" x1="${X(today)}" x2="${X(today)}" y1="${T}" y2="${T+ph}" stroke-dasharray="3 3"/><text x="${X(today)+4}" y="${T+ph-5}" text-anchor="start">今日</text>`;
   g+=`<polyline class="ln" points="${pts.join(" ")}"/>`;
-  const ex=X(today),ey=Y(max);
+  const ex=X(end),ey=Y(max);
   g+=`<circle class="dot" cx="${ex}" cy="${ey}" r="4"/><text class="endlabel" x="${ex>W-80?ex-8:ex+8}" y="${Math.max(ey-8,T+10)}" text-anchor="${ex>W-80?"end":"start"}">¥${yen(max)}</text>`;
   svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.innerHTML=g;
 }
