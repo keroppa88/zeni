@@ -645,8 +645,9 @@ function renderChart(){
   const n=new Date(),y=n.getFullYear(),m=n.getMonth(),last=new Date(y,m+1,0).getDate(),today=n.getDate();
   const daily={total:Array(last+1).fill(0),engel:Array(last+1).fill(0),marx:Array(last+1).fill(0)};
   load().forEach(x=>{const d=x.date.slice(0,10).split("-").map(Number);if(d[0]!==y||d[1]!==m+1)return;
-    daily.total[d[2]]+=x.amount;daily[isEngel(x)?"engel":"marx"][d[2]]+=x.amount});
-  const cum={};for(const k in daily){cum[k]=[0];for(let d=1;d<=last;d++)cum[k][d]=cum[k][d-1]+daily[k][d]}
+    const day=isFixed(x)?0:d[2];
+    daily.total[day]+=x.amount;daily[isEngel(x)?"engel":"marx"][day]+=x.amount});
+  const cum={};for(const k in daily){cum[k]=[daily[k][0]];for(let d=1;d<=last;d++)cum[k][d]=cum[k][d-1]+daily[k][d]}
   // 「今日」か「今月で記録がある最後の日」の遅いほうまで
   let end=today;for(let d=last;d>today;d--)if(daily.total[d]){end=d;break}
   $("chartTitle").textContent=`${m+1}月`;
@@ -654,26 +655,27 @@ function renderChart(){
   $("series").querySelectorAll("button").forEach(b=>{b.setAttribute("aria-pressed",chartSel.has(b.dataset.s));b.querySelector("b").textContent=`¥${yen(cum[b.dataset.s][last])}`});
   const sel=["total","engel","marx"].filter(k=>chartSel.has(k));
   const bar=chartMode==="bar";
-  const max=bar?Math.max(0,...sel.flatMap(k=>daily[k].slice(1))):Math.max(0,...sel.map(k=>cum[k][end]));
+  const max=bar?Math.max(0,...sel.flatMap(k=>daily[k])):Math.max(0,...sel.map(k=>cum[k][end]));
   // 目盛り：1,2,5系のきりのいい刻み
   const raw=Math.max(max,1000)/4,p10=10**Math.floor(Math.log10(raw)),step=[1,2,5,10].map(k=>k*p10).find(v=>v>=raw);
   const top=Math.ceil(Math.max(max,1)/step)*step;
-  const L=44,R=10,T=10,B=22,pw=W-L-R,ph=H-T-B,slot=pw/last;
-  const X=bar?d=>L+(d-.5)*slot:d=>L+(d-1)/(last-1)*pw, Y=v=>T+ph-v/top*ph;
+  const L=44,R=10,T=10,B=22,pw=W-L-R,ph=H-T-B,Z=36,slot=(pw-Z)/last;
+  const X=d=>d===0?L+Z/2-2:L+Z+(d-.5)*slot, Y=v=>T+ph-v/top*ph;
   let g="";
   for(let v=0;v<=top;v+=step){g+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${L-6}" y="${Y(v)+3}" text-anchor="end">${v>=10000?(v/10000)+"万":yen(v)}</text>`}
   [1,8,15,22,last].forEach(d=>g+=`<text x="${X(d)}" y="${H-6}" text-anchor="middle">${d}日</text>`);
+  g+=`<text x="${X(0)}" y="${H-6}" text-anchor="middle">固定</text><line class="grid" x1="${L+Z-2}" x2="${L+Z-2}" y1="${T}" y2="${T+ph}"/>`;
   if(end>today||bar)g+=`<line class="grid" x1="${X(today)}" x2="${X(today)}" y1="${T}" y2="${T+ph}" stroke-dasharray="3 3"/><text x="${X(today)+4}" y="${T+8}" text-anchor="start">今日</text>`;
   if(bar){
     // 棒：累計は薄い帯、エンゲル→マルクスの順に下から積む（両方で累計と同じ高さ）
-    const w=Math.max(2,slot*.7);
-    for(let d=1;d<=last;d++){const x=X(d)-w/2;
-      if(chartSel.has("total")&&daily.total[d])g+=`<rect x="${x}" y="${Y(daily.total[d])}" width="${w}" height="${Y(0)-Y(daily.total[d])}" fill="${SERIES.total}" opacity="${sel.length>1?.25:.85}" rx="1.5"/>`;
+    const w=Math.max(2,slot*.7),w0=Math.min(18,Z*.5);
+    for(let d=0;d<=last;d++){const ww=d===0?w0:w,x=X(d)-ww/2;
+      if(chartSel.has("total")&&daily.total[d])g+=`<rect x="${x}" y="${Y(daily.total[d])}" width="${ww}" height="${Y(0)-Y(daily.total[d])}" fill="${SERIES.total}" opacity="${sel.length>1?.25:.85}" rx="1.5"/>`;
       let base=0;["engel","marx"].forEach(k=>{if(!chartSel.has(k)||!daily[k][d])return;
-        g+=`<rect x="${x}" y="${Y(base+daily[k][d])}" width="${w}" height="${Y(base)-Y(base+daily[k][d])}" fill="${SERIES[k]}" rx="1.5"/>`;base+=daily[k][d]})}
+        g+=`<rect x="${x}" y="${Y(base+daily[k][d])}" width="${ww}" height="${Y(base)-Y(base+daily[k][d])}" fill="${SERIES[k]}" rx="1.5"/>`;base+=daily[k][d]})}
   }else{
-    sel.forEach(k=>{const pts=[];for(let d=1;d<=end;d++)pts.push(`${X(d).toFixed(1)},${Y(cum[k][d]).toFixed(1)}`);
-      if(sel.length===1)g+=`<polygon points="${X(1)},${Y(0)} ${pts.join(" ")} ${X(end)},${Y(0)}" fill="${SERIES[k]}" opacity=".12"/>`;
+    sel.forEach(k=>{const pts=[];for(let d=0;d<=end;d++)pts.push(`${X(d).toFixed(1)},${Y(cum[k][d]).toFixed(1)}`);
+      if(sel.length===1)g+=`<polygon points="${X(0)},${Y(0)} ${pts.join(" ")} ${X(end)},${Y(0)}" fill="${SERIES[k]}" opacity=".12"/>`;
       g+=`<polyline class="ln" stroke="${SERIES[k]}" points="${pts.join(" ")}"/><circle cx="${X(end)}" cy="${Y(cum[k][end])}" r="3.5" fill="${SERIES[k]}"/>`});
   }
   svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.innerHTML=g;
