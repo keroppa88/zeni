@@ -119,18 +119,49 @@ const save=r=>{try{localStorage.setItem(KEY,JSON.stringify(r))}catch(e){}};
 const yen=n=>n.toLocaleString("ja-JP");
 const $=id=>document.getElementById(id);
 
-function chips(el,items,get,set){
+/* 効果音（Web Audio） */
+let ac=null;
+function actx(){try{if(!ac)ac=new (window.AudioContext||window.webkitAudioContext)();if(ac.state==="suspended")ac.resume();}catch(e){}return ac}
+["touchstart","touchend","mousedown"].forEach(ev=>document.addEventListener(ev,actx,{passive:true}));
+function env(g,t,peak,dur){g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(peak,t+0.004);g.gain.exponentialRampToValueAtTime(0.0001,t+dur)}
+function noise(c,dur){const b=c.createBuffer(1,Math.ceil(c.sampleRate*dur),c.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;const s=c.createBufferSource();s.buffer=b;return s}
+const SE={
+  /* 低音バシッ：低いサイン波の急降下＋こもったノイズ */
+  bash(){const c=actx();if(!c)return;const t=c.currentTime;
+    const o=c.createOscillator(),g=c.createGain();o.type="sine";o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(42,t+0.14);
+    env(g,t,0.9,0.18);o.connect(g).connect(c.destination);o.start(t);o.stop(t+0.2);
+    const n=noise(c,0.08),f=c.createBiquadFilter(),ng=c.createGain();f.type="lowpass";f.frequency.value=900;
+    env(ng,t,0.5,0.07);n.connect(f).connect(ng).connect(c.destination);n.start(t)},
+  /* ファミコン的決定音：矩形波の2音 */
+  ok(){const c=actx();if(!c)return;const t=c.currentTime;
+    [[988,0,0.07],[1319,0.075,0.22]].forEach(([fr,st,du])=>{const o=c.createOscillator(),g=c.createGain();o.type="square";o.frequency.value=fr;
+      g.gain.setValueAtTime(0.12,t+st);g.gain.setValueAtTime(0.12,t+st+du-0.02);g.gain.linearRampToValueAtTime(0,t+st+du);
+      o.connect(g).connect(c.destination);o.start(t+st);o.stop(t+st+du)})},
+  /* カリカリ：ごく短い高音ノイズ */
+  tick(){const c=actx();if(!c||c.state!=="running")return;const t=c.currentTime;
+    const n=noise(c,0.012),f=c.createBiquadFilter(),g=c.createGain();f.type="highpass";f.frequency.value=3500;
+    env(g,t,0.35,0.012);n.connect(f).connect(g).connect(c.destination);n.start(t)},
+  /* クリック音 */
+  click(){const c=actx();if(!c)return;const t=c.currentTime;
+    const n=noise(c,0.03),f=c.createBiquadFilter(),g=c.createGain();f.type="bandpass";f.frequency.value=2200;f.Q.value=1.2;
+    env(g,t,0.8,0.03);n.connect(f).connect(g).connect(c.destination);n.start(t);
+    const o=c.createOscillator(),og=c.createGain();o.type="triangle";o.frequency.value=1700;env(og,t,0.25,0.025);o.connect(og).connect(c.destination);o.start(t);o.stop(t+0.04)}
+};
+/* 店舗リストを横にスクロールすると約36pxごとにカリカリ */
+(()=>{let last=0;const el=document.getElementById("stores");
+  el.addEventListener("scroll",()=>{if(Math.abs(el.scrollLeft-last)>=36){last=el.scrollLeft;SE.tick()}},{passive:true})})();
+function chips(el,items,get,set,sound){
   items.forEach(t=>{const b=document.createElement("button");b.className="chip";b.textContent=t;
-    b.onclick=()=>{set(get()===t?null:t);render()};el.appendChild(b)});
+    b.onclick=()=>{if(sound)sound();set(get()===t?null:t);render()};el.appendChild(b)});
 }
-chips($("stores"),STORES,()=>store,v=>store=v);
+chips($("stores"),STORES,()=>store,v=>store=v,()=>SE.click());
 chips($("tags"),TAGS,()=>tag,v=>tag=v);
 function render(){
   document.querySelectorAll("#stores .chip").forEach(b=>b.setAttribute("aria-pressed",b.textContent===store));
   document.querySelectorAll("#tags .chip").forEach(b=>b.setAttribute("aria-pressed",b.textContent===tag));
-  $("picked").innerHTML=(store?`<span>${store}</span>`:`<span class="ph">店舗を選択</span>`)+(tag?`<span>${tag}</span>`:`<span class="ph">タグを選択</span>`);
+  $("picked").innerHTML=(store?`<span>${store}</span>`:`<span class="ph">店舗を選択</span>`)+(tag?`<span>${tag}</span>`:`<span class="ph">タグなし</span>`);
   $("amount").innerHTML=`<small>¥</small>${yen(Number(amt||0))}`;
-  $("ok").disabled=!(store&&tag&&Number(amt)>0);
+  $("ok").disabled=!(store&&Number(amt)>0);
   renderTotal();
 }
 /* 累計：タップで 今月→本日→今週→月前半→月後半 */
@@ -161,16 +192,17 @@ $("total").onclick=()=>{mode=(mode+1)%5;renderTotal()};
   if(k[0]==="+"){b.className="add";b.textContent=yen(Number(k.slice(1)));}
   else{b.textContent=k;if(k==="C"||k==="⌫")b.className="fn";}
   b.onclick=()=>{
-    if(k[0]==="+"){const v=Number(amt||0)+Number(k.slice(1));if(v<1e8)amt=String(v);}
+    if(k[0]==="+"){SE.bash();const v=Number(amt||0)+Number(k.slice(1));if(v<1e8)amt=String(v);}
     else if(k==="C")amt="";else if(k==="⌫")amt=amt.slice(0,-1);
     else if(amt.length<8&&!(amt===""&&k==="0"))amt+=k;
     render()};
   $("keys").appendChild(b)});
 
 $("ok").onclick=()=>{
+  SE.ok();
   const d=new Date();
   const date=`${dkey(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  const r=load();r.unshift({id:Date.now(),date,store,tag,amount:Number(amt)});save(r);
+  const r=load();r.unshift({id:Date.now(),date,store,tag:tag||"",amount:Number(amt)});save(r);
   toast(`${store} ¥${yen(Number(amt))} を記録`);
   store=tag=null;amt="";render();
 };
