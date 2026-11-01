@@ -197,7 +197,7 @@ td:nth-child(3){color:var(--tag);font-size:12px;min-width:5.5em;word-break:keep-
 const STORE_FREE="記入";
 const STORE_GROUPS=[
   ["free",[STORE_FREE]],
-  ["super",["サンディ","阪急オアシス","KOHYO","イズミヤ","業務スーパー","シェフカワカミ","イオンタウン","スギ薬局","ジャパン","ドンキホーテ"]],
+  ["super",["サンディ","阪急オアシス","まるとく","イズミヤ","業務スーパー","シェフカワカミ","イオンタウン","スギ薬局","ジャパン","ドンキホーテ"]],
   ["conv",["ファミリーマート","自動販売機"]],
   ["food",["マクドナルド","なか卯","カフェ・ド・クリエ","モスバーガー"]],
   ["amzn",["Amazon通販"]],
@@ -214,7 +214,7 @@ const defaultCfg=()=>({
   stores:STORE_GROUPS.flatMap(([c,l])=>l.map(name=>({name,c}))),
   tags:["外食","食品","コンテンツ",MEMO,"非日常気晴らし","非日常必要","必要経費","固定"].map(name=>({name,c:name===MEMO?"free":"beige"}))});
 let cfg=(()=>{try{const c=JSON.parse(localStorage.getItem(CFG_KEY));if(c&&c.stores&&c.tags)return c}catch(e){}return defaultCfg()})();
-const FOOD_DEFAULT=["サンディ","阪急オアシス","KOHYO","イズミヤ","業務スーパー","シェフカワカミ","イオンタウン"];
+const FOOD_DEFAULT=["サンディ","阪急オアシス","まるとく","イズミヤ","業務スーパー","シェフカワカミ","イオンタウン"];
 if(!cfg.v){ // 初回だけ：記入・スーパーに印を付ける
   cfg.stores.forEach(x=>{if(x.name===STORE_FREE)x.free=true;if(FOOD_DEFAULT.includes(x.name))x.food=true});
   cfg.tags.forEach(x=>{if(x.name===MEMO)x.memo=true});cfg.v=2;
@@ -232,6 +232,9 @@ if(cfg.v===4){ // 店舗の整理2：改名・削除（これまでの記録は�
   const ren={"イオンタウン":"イオンタウン","MEGAドン・キホーテ":"ドンキホーテ"};
   cfg.stores=cfg.stores.filter(x=>!["バーガーキング","ニトリ"].includes(x.name));
   cfg.stores.forEach(x=>{if(ren[x.name]&&!cfg.stores.some(y=>y.name===ren[x.name]))x.name=ren[x.name]});cfg.v=5;
+  try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg))}catch(e){}}
+if(cfg.v===5){ // KOHYO → まるとく（これまでの記録はそのまま）
+  cfg.stores.forEach(x=>{if(x.name==="KOHYO"&&!cfg.stores.some(y=>y.name==="まるとく"))x.name="まるとく"});cfg.v=6;
   try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg))}catch(e){}}
 const storeItem=n=>cfg.stores.find(x=>x.name===n)||{};
 const isFree=n=>!!storeItem(n).free;
