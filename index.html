@@ -197,12 +197,12 @@ td:nth-child(3){color:var(--tag);font-size:12px;min-width:5.5em;word-break:keep-
 const STORE_FREE="記入";
 const STORE_GROUPS=[
   ["free",[STORE_FREE]],
-  ["super",["サンディ","阪急オアシス","KOHYO","イズミヤ","業務スーパー","シェフカワカミ","イオンタウン","スギ薬局","ジャパン","MEGAドン・キホーテ"]],
+  ["super",["サンディ","阪急オアシス","KOHYO","イズミヤ","業務スーパー","シェフカワカミ","イオンタウン","スギ薬局","ジャパン","ドンキホーテ"]],
   ["conv",["ファミリーマート","自動販売機"]],
-  ["food",["マクドナルド","なか卯","カフェ・ド・クリエ","バーガーキング","モスバーガー"]],
+  ["food",["マクドナルド","なか卯","カフェ・ド・クリエ","モスバーガー"]],
   ["amzn",["Amazon通販"]],
   ["media",["Amazon Downloads","ブックオフ"]],
-  ["life",["ニトリ","メルカリ"]],
+  ["life",["メルカリ"]],
   ["tech",["アンソロピック","オープンAI","Microsoft","Google","Apple","J-Quants API","IIJ"]],
 ];
 const CAT=Object.fromEntries(STORE_GROUPS.flatMap(([c,l])=>l.map(n=>[n,c])));
@@ -227,6 +227,11 @@ if(cfg.v===3){ // 店舗の整理：改名・削除（これまでの記録は�
   const ren={"Anthropic（Claude）":"アンソロピック","OpenAI（ChatGPT）":"オープンAI","Google Cloud":"Google"};
   cfg.stores=cfg.stores.filter(x=>!["転職会議","Amazonプライム"].includes(x.name));
   cfg.stores.forEach(x=>{if(ren[x.name]&&!cfg.stores.some(y=>y.name===ren[x.name]))x.name=ren[x.name]});cfg.v=4;
+  try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg))}catch(e){}}
+if(cfg.v===4){ // 店舗の整理2：改名・削除（これまでの記録はそのまま）
+  const ren={"イオンタウン":"イオンタウン","MEGAドン・キホーテ":"ドンキホーテ"};
+  cfg.stores=cfg.stores.filter(x=>!["バーガーキング","ニトリ"].includes(x.name));
+  cfg.stores.forEach(x=>{if(ren[x.name]&&!cfg.stores.some(y=>y.name===ren[x.name]))x.name=ren[x.name]});cfg.v=5;
   try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg))}catch(e){}}
 const storeItem=n=>cfg.stores.find(x=>x.name===n)||{};
 const isFree=n=>!!storeItem(n).free;
