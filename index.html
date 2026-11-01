@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box}body{margin:0;font:14px system-ui,sans-serif}[hidden]{display:none!important}</style>
-<title>ワンタップ家計簿</title>
+<title>ライフログα</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
 /* 上：店舗・タグ / 中：選択内容・金額・決定 / 下：テンキー */
@@ -113,7 +113,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .switch{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:12px;font:700 14px var(--sans);padding:0 14px}
 .view{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px}
 #inputView,#foodInput{gap:7px}
-/* 最上段：家計簿／食べログ */
+/* 最上段：銭ログ／食べログ */
 .modebar{flex:none;display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px;border-radius:9px;background:var(--line)}
 .modebar button{border:none;border-radius:7px;background:none;color:var(--muted);font:700 12px var(--sans);padding:4px 0;letter-spacing:.08em}
 .modebar button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
@@ -173,7 +173,7 @@ td:nth-child(3){color:var(--tag);font-size:12px;min-width:5.5em;word-break:keep-
 <body>
 
 <div class="app">
-  <div class="modebar" id="modebar"><button data-mode="kakei" aria-pressed="true">家計簿</button><button data-mode="food" aria-pressed="false">食べログ</button></div>
+  <div class="modebar" id="modebar"><button data-mode="kakei" aria-pressed="true">銭ログ</button><button data-mode="food" aria-pressed="false">食べログ</button></div>
   <div class="top">
     <div class="fdate" id="fdate" hidden></div>
     <button class="total" id="total"><span id="tLabel"></span><b id="tVal"></b><span class="split"><span class="e"><i>エンゲル</i><span id="tEngel"></span></span><span class="m"><i>マルクス</i><span id="tMarx"></span></span></span></button>
@@ -416,7 +416,7 @@ function pickStore(t){SE.click();store=store===t?null:t;
   if(store){if(storeItem(store).food)auto("食品");(storeItem(store).autoTags||[]).forEach(auto);if(colorOf(store)==="tech")auto("固定");
     if(isFree(store))setTimeout(()=>$("storeName").focus(),0);}
   render()}
-/* 家計簿の白い枠：タップで品名の入力欄を出す（記入タグなしでも可） */
+/* 銭ログの白い枠：タップで品名の入力欄を出す（記入タグなしでも可） */
 let memoOpen=false;
 document.querySelector("#inputView .center").addEventListener("click",e=>{
   if(e.target.closest("button,input"))return;memoOpen=true;render();$("memo").focus()});
@@ -634,7 +634,7 @@ function showView(){
   if(id==="foodInput")renderFood();
 }
 $("switch").onclick=()=>{view=(view+1)%VIEWS[appMode].length;showView()};
-/* 家計簿／食べログの切替（どちらを開いていたかはこの端末に記憶） */
+/* 銭ログ／食べログの切替（どちらを開いていたかはこの端末に記憶） */
 $("modebar").querySelectorAll("button").forEach(b=>b.onclick=()=>{
   if(moving)endMove();appMode=b.dataset.mode;view=0;try{localStorage.setItem("kakeibo.mode",appMode)}catch(e){};showView()});
 try{if(localStorage.getItem("kakeibo.mode")==="food")appMode="food"}catch(e){}
