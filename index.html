@@ -21,45 +21,44 @@
   --bg:#121816; --surface:#1b2320; --fg:#e6ece9; --muted:#93a39d;
   --line:#2c3733; --accent:#4fb497; --accent-fg:#0d1513; --tag:#e9b867; --tag-bg:#2a2217; color-scheme:dark}
 html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-tap-highlight-color:transparent;overflow:hidden}
-.app{height:100%;display:flex;flex-direction:column;gap:10px;max-width:520px;margin:0 auto;
-  padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));padding-block:10px;box-sizing:border-box}
-.label{font-size:11px;letter-spacing:.08em;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
-.label button{background:none;border:none;color:var(--accent);font:inherit;font-size:12px;padding:2px 4px}
-/* 店舗：3段の横スクロール */
-.stores{display:grid;grid-template-rows:repeat(3,auto);grid-auto-flow:column;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-tap-highlight-color:transparent;overflow:hidden;-webkit-user-select:none;user-select:none}
+button{touch-action:manipulation}
+.app{height:100%;display:flex;flex-direction:column;gap:7px;max-width:520px;margin:0 auto;
+  padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px));padding-block:8px;box-sizing:border-box}
+/* 店舗：2段の横スクロール */
+.stores{flex:none;display:grid;grid-template-rows:repeat(2,auto);grid-auto-flow:column;gap:5px;overflow-x:auto;scrollbar-width:none}
 .stores::-webkit-scrollbar{display:none}
-.chip{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:8px;padding:8px 11px;font:500 13px var(--sans);white-space:nowrap}
+.chip{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:7px;padding:6px 9px;font:500 12.5px var(--sans);white-space:nowrap}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
-.tags{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.tags .chip{text-align:center;color:var(--tag);background:var(--tag-bg);border-color:transparent}
+.tags{flex:none;display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.tags .chip{text-align:center;color:var(--tag);background:var(--tag-bg);border-color:transparent;padding:6px 2px}
 .tags .chip[aria-pressed="true"]{background:var(--tag);color:var(--bg)}
-/* 中央 */
-.center{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;gap:8px;
-  background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
-.picked{display:flex;gap:8px;flex-wrap:wrap;font-size:14px;font-weight:700;min-height:22px}
-.picked span{padding:2px 8px;border-radius:6px;background:var(--bg)}
-.picked .ph{color:var(--muted);font-weight:500;background:none;padding:2px 0}
-.row{display:flex;align-items:center;gap:12px}
-.amount{flex:1;font:600 clamp(30px,10vw,42px) var(--mono);font-variant-numeric:tabular-nums;text-align:right;overflow:hidden;white-space:nowrap}
+/* 中央：縮まない */
+.center{flex:none;display:flex;flex-direction:column;gap:4px;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.picked{display:flex;gap:6px;font-size:12.5px;font-weight:700;min-height:20px;overflow:hidden;white-space:nowrap}
+.picked span{padding:1px 7px;border-radius:5px;background:var(--bg);overflow:hidden;text-overflow:ellipsis}
+.picked .ph{color:var(--muted);font-weight:500;background:none;padding:1px 0}
+.row{display:flex;align-items:center;gap:10px}
+.amount{flex:1;min-width:0;font:600 30px var(--mono);font-variant-numeric:tabular-nums;text-align:right;overflow:hidden;white-space:nowrap}
 .amount small{font-size:.5em;color:var(--muted);margin-right:4px}
-.ok{background:var(--accent);color:var(--accent-fg);border:none;border-radius:12px;font:700 17px var(--sans);padding:14px 20px}
+.ok{flex:none;background:var(--accent);color:var(--accent-fg);border:none;border-radius:10px;font:700 16px var(--sans);padding:11px 18px}
 .ok:disabled{opacity:.35}
-.sub{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
-/* テンキー */
-.keys{display:grid;grid-template-columns:.85fr repeat(3,1fr);gap:6px}
-.keys .add{background:var(--tag-bg);color:var(--tag);font:600 16px var(--mono)}
+/* テンキー：残りの高さを使う */
+.keys{flex:1;min-height:150px;display:grid;grid-template-columns:.85fr repeat(3,1fr);grid-template-rows:repeat(4,1fr);gap:5px}
+.keys button{border:none;background:var(--surface);color:var(--fg);border-radius:9px;font:600 22px var(--mono);box-shadow:0 1px 0 var(--line);min-height:0}
+.keys .add{background:var(--tag-bg);color:var(--tag);font:600 15px var(--mono)}
 .keys .add::before{content:"+";opacity:.6;margin-right:1px}
-.keys button{border:none;background:var(--surface);color:var(--fg);border-radius:10px;font:600 22px var(--mono);height:clamp(46px,7.5vh,60px);box-shadow:0 1px 0 var(--line)}
 .keys button:active,.chip:active{transform:scale(.97)}
 .keys .fn{font:700 15px var(--sans);color:var(--muted)}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 /* 最上部：累計＋切替 */
 .top{display:flex;gap:8px;align-items:stretch}
-.total{flex:1;display:flex;justify-content:space-between;align-items:baseline;gap:8px;border:none;border-radius:12px;
-  background:var(--fg);color:var(--bg);padding:10px 14px;font-family:var(--sans);text-align:left}
-.total span{font-size:12px;letter-spacing:.06em;opacity:.75}
-.total b{font:600 24px var(--mono);font-variant-numeric:tabular-nums}
+.top{flex:none}
+.total{flex:1;min-width:0;display:flex;justify-content:space-between;align-items:baseline;gap:8px;border:none;border-radius:10px;
+  background:var(--fg);color:var(--bg);padding:7px 12px;font-family:var(--sans);text-align:left}
+.total span{font-size:11px;white-space:nowrap;letter-spacing:.06em;opacity:.75}
+.total b{font:600 20px var(--mono);font-variant-numeric:tabular-nums}
 .switch{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:12px;font:700 14px var(--sans);padding:0 14px}
 .view{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px}
 /* 表 */
@@ -86,9 +85,7 @@ td:nth-child(3){color:var(--tag);font-size:12px}
   </div>
 
   <div class="view" id="inputView">
-    <div class="label">店舗</div>
     <div class="stores" id="stores"></div>
-    <div class="label">使い道</div>
     <div class="tags" id="tags"></div>
 
     <div class="center">
@@ -123,14 +120,14 @@ const yen=n=>n.toLocaleString("ja-JP");
 const $=id=>document.getElementById(id);
 
 function chips(el,items,get,set){
-  el.innerHTML="";
   items.forEach(t=>{const b=document.createElement("button");b.className="chip";b.textContent=t;
-    b.setAttribute("aria-pressed",get()===t);
     b.onclick=()=>{set(get()===t?null:t);render()};el.appendChild(b)});
 }
+chips($("stores"),STORES,()=>store,v=>store=v);
+chips($("tags"),TAGS,()=>tag,v=>tag=v);
 function render(){
-  chips($("stores"),STORES,()=>store,v=>store=v);
-  chips($("tags"),TAGS,()=>tag,v=>tag=v);
+  document.querySelectorAll("#stores .chip").forEach(b=>b.setAttribute("aria-pressed",b.textContent===store));
+  document.querySelectorAll("#tags .chip").forEach(b=>b.setAttribute("aria-pressed",b.textContent===tag));
   $("picked").innerHTML=(store?`<span>${store}</span>`:`<span class="ph">店舗を選択</span>`)+(tag?`<span>${tag}</span>`:`<span class="ph">タグを選択</span>`);
   $("amount").innerHTML=`<small>¥</small>${yen(Number(amt||0))}`;
   $("ok").disabled=!(store&&tag&&Number(amt)>0);
