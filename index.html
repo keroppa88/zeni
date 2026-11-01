@@ -198,6 +198,10 @@ if(!cfg.v){ // 初回だけ：記入・スーパーに印を付ける
   cfg.stores.forEach(x=>{if(x.name===STORE_FREE)x.free=true;if(FOOD_DEFAULT.includes(x.name))x.food=true});
   cfg.tags.forEach(x=>{if(x.name===MEMO)x.memo=true});cfg.v=2;
   try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg))}catch(e){}}
+if(cfg.v===2){ // ファミリーマート → タグ「コンビニ」を自動選択
+  if(!cfg.tags.some(x=>x.name==="コンビニ")){const i=cfg.tags.findIndex(x=>x.name==="食品");cfg.tags.splice(i<0?cfg.tags.length:i+1,0,{name:"コンビニ",c:"conv"})}
+  cfg.stores.forEach(x=>{if(x.name==="ファミリーマート")x.autoTags=["コンビニ"]});cfg.v=3;
+  try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg))}catch(e){}}
 const storeItem=n=>cfg.stores.find(x=>x.name===n)||{};
 const isFree=n=>!!storeItem(n).free;
 const memoName=()=>(cfg.tags.find(x=>x.memo)||{}).name;
@@ -251,7 +255,7 @@ const SE={
 (()=>{let ch=false;const r=load().map(x=>{const t=tagsOf(x);
   if(CAT[x.store]==="tech"&&!t.includes("固定")){ch=true;const {tag,...rest}=x;return {...rest,tags:[...t,"固定"]}}return x});if(ch)save(r)})();
 function pickStore(t){SE.click();store=store===t?null:t;
-  if(store){if(storeItem(store).food)tags.add("食品");if(colorOf(store)==="tech")tags.add("固定");
+  if(store){if(storeItem(store).food)tags.add("食品");(storeItem(store).autoTags||[]).forEach(t=>tags.add(t));if(colorOf(store)==="tech")tags.add("固定");
     if(isFree(store))setTimeout(()=>$("storeName").focus(),0);}
   render()}
 function pickTag(t){tags.has(t)?tags.delete(t):tags.add(t);render();if(t===memoName()&&tags.has(t))$("memo").focus()}
