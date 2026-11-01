@@ -108,6 +108,20 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .total .split .e i{color:#f6b77a}.total .split .m i{color:#b9b9fa}
 .switch{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:12px;font:700 14px var(--sans);padding:0 14px}
 .view{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px}
+#inputView,#foodInput{gap:7px}
+/* 最上段：家計簿／食べログ */
+.modebar{flex:none;display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px;border-radius:9px;background:var(--line)}
+.modebar button{border:none;border-radius:7px;background:none;color:var(--muted);font:700 12px var(--sans);padding:4px 0;letter-spacing:.08em}
+.modebar button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.fdate{flex:1;display:flex;align-items:center;min-height:40px;font:700 15px var(--sans);padding:0 4px}
+/* 食べログ */
+.center.fcenter{flex-direction:row;align-items:center;gap:10px;padding:10px}
+.fcenter .picked{flex:1;flex-wrap:wrap;white-space:normal;min-height:24px}
+.flog{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column}
+.flog h4{margin:0 0 4px;font-size:11px;font-weight:500;letter-spacing:.06em;color:var(--muted)}
+.flog .row{display:flex;gap:10px;align-items:baseline;padding:7px 2px;border-bottom:1px solid var(--line);font-size:13px}
+.flog .row time{font:500 12px var(--mono);color:var(--muted)}
+.flog .row em{font-style:normal;font-size:11px;color:var(--tag);margin-left:auto;white-space:nowrap}
 /* 表 */
 .tblwrap{overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -149,7 +163,9 @@ td:nth-child(3){color:var(--tag);font-size:12px;min-width:5.5em;word-break:keep-
 <body>
 
 <div class="app">
+  <div class="modebar" id="modebar"><button data-mode="kakei" aria-pressed="true">家計簿</button><button data-mode="food" aria-pressed="false">食べログ</button></div>
   <div class="top">
+    <div class="fdate" id="fdate" hidden></div>
     <button class="total" id="total"><span id="tLabel"></span><b id="tVal"></b><span class="split"><span class="e"><i>エンゲル</i><span id="tEngel"></span></span><span class="m"><i>マルクス</i><span id="tMarx"></span></span></span></button>
     <button class="switch" id="switch">表</button>
   </div>
@@ -175,6 +191,23 @@ td:nth-child(3){color:var(--tag);font-size:12px;min-width:5.5em;word-break:keep-
     <table>
       <thead><tr><th>月日</th><th>店舗</th><th>タグ</th><th class="num">金額</th><th></th></tr></thead>
       <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="view" id="foodInput" hidden>
+    <div class="stores" id="foods"></div>
+    <div class="tags" id="ftags"></div>
+    <div class="center fcenter">
+      <div class="picked" id="fpicked"></div>
+      <button class="ok" id="fok" disabled>決定</button>
+    </div>
+    <div class="flog"><h4>今日の記録</h4><div id="ftoday"></div></div>
+  </div>
+
+  <div class="view tblwrap" id="foodTable" hidden>
+    <table>
+      <thead><tr><th>日付</th><th>食べたもの</th><th>タグ</th><th></th></tr></thead>
+      <tbody id="ftbody"></tbody>
     </table>
   </div>
 
@@ -291,6 +324,73 @@ const SE={
 /* スーパーを選ぶとタグ「食品」、紫の店舗はタグ「固定」を自動選択（あとで変更可） */
 (()=>{let ch=false;const r=load().map(x=>{const t=tagsOf(x);
   if(CAT[x.store]==="tech"&&!t.includes("固定")){ch=true;const {tag,...rest}=x;return {...rest,tags:[...t,"固定"]}}return x});if(ch)save(r)})();
+/* ===== 食べログ：日付と食べたもの（金額・グラフなし） ===== */
+const FKEY="kakeibo.food.records.v1", FCFG_KEY="kakeibo.food.config.v1";
+const fload=()=>{try{return JSON.parse(localStorage.getItem(FKEY))||[]}catch(e){return []}};
+const fsave=r=>{try{localStorage.setItem(FKEY,JSON.stringify(r))}catch(e){}};
+let fcfg=(()=>{try{const c=JSON.parse(localStorage.getItem(FCFG_KEY));if(c&&c.foods&&c.ftags)return c}catch(e){}
+  const auto={"焼飯":["必然食"],"卵":["必然食"],"鶏肉":["必然食"],"きゅうり":["必然食"],"ピーナッツ":["半必食"],"ヨーグルト":["半必食"],"菓子":["嗜好品"]};
+  return {foods:["焼飯","卵","鶏肉","きゅうり","ピーナッツ","ヨーグルト","コーヒー","サプリ"].map(name=>({name,c:"food",autoTags:auto[name]})),
+    ftags:["必然食","半必食","菓子","嗜好品"].map(name=>({name,c:"beige",autoTags:auto[name]}))}})();
+const saveF=()=>{try{localStorage.setItem(FCFG_KEY,JSON.stringify(fcfg))}catch(e){}};
+let foods=new Set(), ftags=new Set(), fOff=new Set();
+const fAuto=()=>{const a=new Set();
+  fcfg.foods.forEach(x=>{if(foods.has(x.name))(x.autoTags||[]).forEach(t=>a.add(t))});
+  fcfg.ftags.forEach(x=>{if(ftags.has(x.name))(x.autoTags||[]).forEach(t=>a.add(t))});return a};
+const fTagsOn=()=>{const a=fAuto();return new Set(fcfg.ftags.map(x=>x.name).filter(n=>!fOff.has(n)&&(ftags.has(n)||a.has(n))))};
+const toggle=(set,t)=>set.has(t)?set.delete(t):set.add(t);
+function renderFood(){
+  document.querySelectorAll("#foods .chip[data-name]").forEach(b=>b.setAttribute("aria-pressed",foods.has(b.dataset.name)));
+  const on=fTagsOn();document.querySelectorAll("#ftags .chip[data-name]").forEach(b=>b.setAttribute("aria-pressed",on.has(b.dataset.name)));
+  const fl=fcfg.foods.map(x=>x.name).filter(n=>foods.has(n)), tl=fcfg.ftags.map(x=>x.name).filter(n=>on.has(n));
+  $("fpicked").innerHTML=(fl.length?fl.map(n=>`<span>${esc(n)}</span>`).join(""):`<span class="ph">食べたものを選択</span>`)+tl.map(n=>`<span>${esc(n)}</span>`).join("");
+  $("fok").disabled=!fl.length;
+  const d=new Date(),key=dkey(d);
+  $("fdate").textContent=`${d.getMonth()+1}月${d.getDate()}日（${"日月火水木金土"[d.getDay()]}）`;
+  const today=fload().filter(x=>x.date.startsWith(key));
+  $("ftoday").innerHTML=today.length?today.map(x=>`<div class="row"><time>${x.date.slice(11)}</time><span>${esc(x.foods.join("・"))}</span><em>${esc((x.tags||[]).join("・"))}</em></div>`).join(""):'<p class="empty">まだありません</p>';
+}
+$("fok").onclick=()=>{
+  const fl=fcfg.foods.map(x=>x.name).filter(n=>foods.has(n));
+  const extra=[...foods].filter(n=>!fl.includes(n)); // 一覧から消した直後でも選択分は残す
+  const d=new Date(),r=fload();
+  r.unshift({id:Date.now(),date:`${dkey(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`,foods:[...fl,...extra],tags:[...fTagsOn()]});fsave(r);
+  SE.ok();toast(`${[...fl,...extra].join("・")} を記録`);foods=new Set();ftags=new Set();fOff=new Set();renderFood();
+};
+/* 食べログの表：古い順、日付ごと。セルを押すと編集 */
+function renderFoodTable(){
+  const r=fload().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:a.id-b.id),tb=$("ftbody");tb.innerHTML="";
+  if(!r.length){tb.innerHTML='<tr><td colspan="4" class="empty">まだ記録はありません</td></tr>';return}
+  let month="";
+  r.forEach(x=>{
+    const [yy,mm,dd]=x.date.slice(0,10).split("-");
+    if(yy+mm!==month){month=yy+mm;const h=document.createElement("tr");h.className="month";h.innerHTML=`<td colspan="4">${yy}年${Number(mm)}月</td>`;tb.appendChild(h)}
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td data-f="date">${Number(mm)}/${Number(dd)}</td><td data-f="foods">${esc(x.foods.join("・"))}</td><td data-f="tags">${esc((x.tags||[]).join("・"))}</td><td></td>`;
+    tr.querySelectorAll("td[data-f]").forEach(td=>td.onclick=()=>editFoodCell(td,x));
+    const b=document.createElement("button");b.className="del";b.textContent="×";b.setAttribute("aria-label","削除");
+    b.onclick=()=>{if(b.classList.contains("c")){fsave(fload().filter(y=>y.id!==x.id));renderFoodTable();renderFood()}else{b.classList.add("c");b.textContent="削除"}};
+    tr.lastChild.appendChild(b);tb.appendChild(tr)});
+}
+function editFoodCell(td,x){
+  if(td.classList.contains("editing"))return;
+  const f=td.dataset.f;td.classList.add("editing");
+  const i=document.createElement("input");i.className="cell-in";
+  if(f==="date"){i.type="date";i.value=x.date.slice(0,10)}else{i.type="text";i.value=(f==="foods"?x.foods:(x.tags||[])).join("・");i.placeholder="・で区切る"}
+  td.innerHTML="";td.appendChild(i);i.focus();
+  let done=false;
+  const finish=ok=>{if(done)return;done=true;
+    if(ok){const r=fload(),y=r.find(z=>z.id===x.id);if(y){
+      const list=i.value.split(/[・,、\s]+/).map(t=>t.trim()).filter(Boolean);
+      if(f==="date"&&/^\d{4}-\d{2}-\d{2}$/.test(i.value))y.date=i.value+x.date.slice(10);
+      if(f==="foods"&&list.length)y.foods=list;
+      if(f==="tags")y.tags=list;
+      fsave(r)}}
+    renderFoodTable();renderFood()};
+  i.addEventListener("blur",()=>finish(true));
+  i.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();finish(true)}if(e.key==="Escape")finish(false)});
+}
+
 /* 店舗で自動的に付けたタグ。店舗を変えたら外す（手で付けたタグは残す） */
 let autoAdded=new Set();
 function pickStore(t){SE.click();store=store===t?null:t;
@@ -306,10 +406,22 @@ $("storeName").addEventListener("input",()=>render());
 const tagList=()=>cfg.tags.map(x=>x.name).filter(t=>t!==memoName()&&tags.has(t));
 
 let moving=null; // {kind,name}
+/* 編集できるボタン一覧の定義 */
+const LISTS={
+  stores:{own:()=>cfg,save:()=>saveCfg(),ja:"店舗",defC:"super",pick:t=>pickStore(t),
+    del:n=>{if(store===n)store=null},ren:(o,n)=>{if(store===o)store=n}},
+  tags:{own:()=>cfg,save:()=>saveCfg(),ja:"タグ",defC:"beige",pick:t=>pickTag(t),
+    del:n=>tags.delete(n),ren:(o,n)=>{if(tags.has(o)){tags.delete(o);tags.add(n)}}},
+  foods:{own:()=>fcfg,save:()=>saveF(),ja:"食べたもの",defC:"food",pick:t=>{SE.click();toggle(foods,t);renderFood()},
+    del:n=>foods.delete(n),ren:(o,n)=>{if(foods.has(o)){foods.delete(o);foods.add(n)}}},
+  ftags:{own:()=>fcfg,save:()=>saveF(),ja:"タグ",defC:"beige",pick:t=>{if(fTagsOn().has(t)){ftags.delete(t);fOff.add(t)}else{ftags.add(t);fOff.delete(t)}renderFood()},
+    del:n=>ftags.delete(n),ren:(o,n)=>{if(ftags.has(o)){ftags.delete(o);ftags.add(n)}}},
+};
+const listOf=k=>LISTS[k].own()[k];
 function renderChips(){
-  [["stores",pickStore],["tags",pickTag]].forEach(([kind,pick])=>{
+  Object.keys(LISTS).forEach(kind=>{const pick=LISTS[kind].pick;
     const el=$(kind),sl=el.scrollLeft;el.innerHTML="";
-    cfg[kind].forEach(item=>{
+    listOf(kind).forEach(item=>{
       const b=document.createElement("button");b.className="chip";b.textContent=item.name;b.dataset.name=item.name;b.dataset.c=item.c;
       if(moving&&moving.kind===kind&&moving.name===item.name)b.classList.add("moving");
       longPress(b,()=>openMenu(kind,item.name));
@@ -317,11 +429,11 @@ function renderChips(){
         if(moving){if(moving.kind===kind)moveTo(kind,item.name);return}
         pick(item.name)});
       el.appendChild(b)});
-    const plus=document.createElement("button");plus.className="chip plus";plus.textContent="＋";plus.setAttribute("aria-label",kind==="stores"?"店舗を追加":"タグを追加");
+    const plus=document.createElement("button");plus.className="chip plus";plus.textContent="＋";plus.setAttribute("aria-label",LISTS[kind].ja+"を追加");
     plus.onclick=()=>{if(!moving)openNew(kind)};el.appendChild(plus);
     el.scrollLeft=sl});
   document.body.classList.toggle("move-mode",!!moving);
-  render();
+  render();renderFood();
 }
 /* 長押し（0.5秒）。指が動いたらスクロールとみなして取り消す */
 function longPress(b,fn){
@@ -332,7 +444,6 @@ function longPress(b,fn){
   ["pointerup","pointercancel","pointerleave"].forEach(ev=>b.addEventListener(ev,cancel));
   b.addEventListener("contextmenu",e=>e.preventDefault());
 }
-const KIND_JA={stores:"店舗",tags:"タグ"};
 function sheet(html){$("sheet").innerHTML=html;$("sheetBg").hidden=false}
 function closeSheet(){$("sheetBg").hidden=true;$("sheet").innerHTML=""}
 $("sheetBg").addEventListener("click",e=>{if(e.target===$("sheetBg"))closeSheet()});
@@ -344,16 +455,15 @@ function openMenu(kind,name){
     const a=b.dataset.a;
     if(a==="move"){closeSheet();moving={kind,name};$("moveBar").hidden=false;renderChips()}
     if(a==="edit")openEdit(kind,name);
-    if(a==="del"){cfg[kind]=cfg[kind].filter(x=>x.name!==name);saveCfg();
-      if(kind==="stores"&&store===name)store=null;if(kind==="tags")tags.delete(name);
+    if(a==="del"){const o=LISTS[kind].own();o[kind]=o[kind].filter(x=>x.name!==name);LISTS[kind].save();LISTS[kind].del(name);
       closeSheet();renderChips();toast(`${name} を消去（記録は残ります）`)}
     if(a==="close")closeSheet()});
 }
 function swatchesHtml(cur){return `<div class="swatches">${COLORS.map(([c,ja])=>`<button class="chip" data-c="${c}" aria-pressed="${c===cur}">${ja}</button>`).join("")}</div>`}
 function openEdit(kind,name){
-  const item=cfg[kind].find(x=>x.name===name);if(!item)return closeSheet();
+  const item=listOf(kind).find(x=>x.name===name);if(!item)return closeSheet();
   let c=item.c;
-  sheet(`<h3>${KIND_JA[kind]}の編集</h3><input id="editName" type="text" autocomplete="off">${swatchesHtml(c)}
+  sheet(`<h3>${LISTS[kind].ja}の編集</h3><input id="editName" type="text" autocomplete="off">${swatchesHtml(c)}
     <div class="acts"><button class="act" data-a="close">やめる</button><button class="act main" data-a="save" style="grid-column:span 2">保存</button></div>`);
   $("editName").value=item.name;
   const sw=$("sheet").querySelectorAll(".swatches button");
@@ -361,30 +471,29 @@ function openEdit(kind,name){
   $("sheet").querySelector("[data-a=close]").onclick=closeSheet;
   $("sheet").querySelector("[data-a=save]").onclick=()=>{
     const nn=$("editName").value.trim();if(!nn)return $("editName").focus();
-    if(nn!==item.name&&cfg[kind].some(x=>x.name===nn)){toast("同じ名前があります");return}
+    if(nn!==item.name&&listOf(kind).some(x=>x.name===nn)){toast("同じ名前があります");return}
     // 選択中なら選択も新しい名前へ（これまでの記録はそのまま）
-    if(kind==="stores"&&store===item.name)store=nn;
-    if(kind==="tags"&&tags.has(item.name)){tags.delete(item.name);tags.add(nn)}
-    item.name=nn;item.c=c;saveCfg();closeSheet();renderChips()};
+    LISTS[kind].ren(item.name,nn);
+    item.name=nn;item.c=c;LISTS[kind].save();closeSheet();renderChips()};
 }
 function openNew(kind){
-  let c=kind==="stores"?"super":"beige";
-  sheet(`<h3>${KIND_JA[kind]}を追加</h3><input id="newName" type="text" placeholder="${KIND_JA[kind]}名" autocomplete="off">${swatchesHtml(c)}
+  let c=LISTS[kind].defC;
+  sheet(`<h3>${LISTS[kind].ja}を追加</h3><input id="newName" type="text" placeholder="${LISTS[kind].ja}" autocomplete="off">${swatchesHtml(c)}
     <div class="acts"><button class="act" data-a="close">やめる</button><button class="act main" data-a="add" style="grid-column:span 2">追加</button></div>`);
   const sw=$("sheet").querySelectorAll(".swatches button");
   sw.forEach(b=>b.onclick=()=>{c=b.dataset.c;sw.forEach(x=>x.setAttribute("aria-pressed",x===b))});
   $("sheet").querySelector("[data-a=close]").onclick=closeSheet;
   $("sheet").querySelector("[data-a=add]").onclick=()=>{
     const name=$("newName").value.trim();if(!name)return $("newName").focus();
-    if(cfg[kind].some(x=>x.name===name)){toast("同じ名前があります");return}
-    cfg[kind].push({name,c});saveCfg();closeSheet();renderChips();
+    if(listOf(kind).some(x=>x.name===name)){toast("同じ名前があります");return}
+    listOf(kind).push({name,c});LISTS[kind].save();closeSheet();renderChips();
     const el=$(kind);el.scrollLeft=el.scrollWidth;toast(`${name} を追加`)};
   setTimeout(()=>$("newName").focus(),50);
 }
 /* 移動：選んだボタンを、タップしたボタンの位置へ */
 function moveTo(kind,target){
-  const list=cfg[kind],from=list.findIndex(x=>x.name===moving.name),to=list.findIndex(x=>x.name===target);
-  if(from>=0&&to>=0&&from!==to){const [it]=list.splice(from,1);list.splice(to,0,it);saveCfg()}
+  const list=listOf(kind),from=list.findIndex(x=>x.name===moving.name),to=list.findIndex(x=>x.name===target);
+  if(from>=0&&to>=0&&from!==to){const [it]=list.splice(from,1);list.splice(to,0,it);LISTS[kind].save()}
   endMove()}
 function endMove(){moving=null;$("moveBar").hidden=true;renderChips()}
 $("moveCancel").onclick=endMove;
@@ -488,15 +597,25 @@ function editCell(td,x){
   ins.forEach(i=>i.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();finish(true)}if(e.key==="Escape")finish(false)}));
 }
 /* 画面切替：入力 → 表 → グラフ → 入力（ボタンには次の画面名を表示） */
-const VIEWS=[["inputView","表"],["tableView","グラフ"],["chartView","入力"]];
-let view=0;
-$("switch").onclick=()=>{
-  view=(view+1)%3;
-  VIEWS.forEach(([id],i)=>$(id).hidden=i!==view);
-  $("switch").textContent=VIEWS[view][1];
-  if(view===1){renderTable();const w=$("tableView");w.scrollTop=w.scrollHeight;}
-  if(view===2)renderChart();
-};
+const VIEWS={kakei:[["inputView","表"],["tableView","グラフ"],["chartView","入力"]],food:[["foodInput","表"],["foodTable","入力"]]};
+const ALL_VIEWS=["inputView","tableView","chartView","foodInput","foodTable"];
+let appMode="kakei", view=0;
+function showView(){
+  const vs=VIEWS[appMode],id=vs[view][0];
+  ALL_VIEWS.forEach(v=>$(v).hidden=v!==id);
+  $("switch").textContent=vs[view][1];
+  $("total").hidden=appMode!=="kakei"; $("fdate").hidden=appMode!=="food";
+  $("modebar").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.mode===appMode));
+  if(id==="tableView"){renderTable();const w=$("tableView");w.scrollTop=w.scrollHeight;}
+  if(id==="chartView")renderChart();
+  if(id==="foodTable"){renderFoodTable();const w=$("foodTable");w.scrollTop=w.scrollHeight;}
+  if(id==="foodInput")renderFood();
+}
+$("switch").onclick=()=>{view=(view+1)%VIEWS[appMode].length;showView()};
+/* 家計簿／食べログの切替（どちらを開いていたかはこの端末に記憶） */
+$("modebar").querySelectorAll("button").forEach(b=>b.onclick=()=>{
+  if(moving)endMove();appMode=b.dataset.mode;view=0;try{localStorage.setItem("kakeibo.mode",appMode)}catch(e){};showView()});
+try{if(localStorage.getItem("kakeibo.mode")==="food")appMode="food"}catch(e){}
 /* 今月のグラフ：累計／エンゲル／マルクスを重ねて表示。累積折れ線 ⇔ 日毎の棒 */
 const SERIES={total:"var(--chart)",engel:"var(--engel)",marx:"var(--marx)"};
 let chartSel=new Set(["total"]), chartMode="line";
@@ -541,7 +660,7 @@ function renderChart(){
   }
   svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.innerHTML=g;
 }
-renderChips();
+renderChips();showView();
 </script>
 </body>
 </html>
