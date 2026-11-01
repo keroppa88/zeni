@@ -44,6 +44,8 @@ button{touch-action:manipulation}
 .stores .chip[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
 .tags{flex:none;display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
 .tags .chip{text-align:center;color:var(--tag);background:var(--tag-bg);border-color:transparent;padding:6px 1px;font-size:11.5px}
+.stores .chip[data-c="free"]{background:var(--surface);border:1px dashed var(--muted)}
+.stores .chip[data-c="free"][aria-pressed="true"]{background:var(--fg);border-style:solid}
 .tags .chip.memo{background:var(--surface);border:1px dashed var(--tag)}
 .tags .chip[aria-pressed="true"]{background:var(--tag);color:var(--bg)}
 /* 中央：縮まない */
@@ -120,6 +122,7 @@ td:nth-child(3){color:var(--tag);font-size:12px}
 
     <div class="center">
       <div class="picked" id="picked"></div>
+      <input class="memo-in" id="storeName" type="text" placeholder="店舗名を入力" autocomplete="off" hidden>
       <input class="memo-in" id="memo" type="text" placeholder="項目名を入力" autocomplete="off" hidden>
       <div class="row">
         <div class="amtbox"><div class="calc" id="calc"></div><div class="amount" id="amount"><small>¥</small>0</div></div>
@@ -145,7 +148,9 @@ td:nth-child(3){color:var(--tag);font-size:12px}
 <div class="toast" id="toast" hidden></div>
 
 <script>
+const STORE_FREE="記入";
 const STORE_GROUPS=[
+  ["free",[STORE_FREE]],
   ["super",["サンディ","阪急オアシス","KOHYO","イズミヤ","業務スーパー","シェフカワカミ","イオンタウン","スギ薬局","ジャパン","MEGAドン・キホーテ"]],
   ["conv",["ファミリーマート","自動販売機"]],
   ["food",["マクドナルド","なか卯","カフェ・ド・クリエ","バーガーキング","モスバーガー"]],
@@ -206,7 +211,11 @@ function chips(el,items,get,set,sound){
 }
 /* スーパーを選ぶとタグ「食品」を自動選択（あとで変更可） */
 const FOOD_DEFAULT=["サンディ","阪急オアシス","KOHYO","イズミヤ","業務スーパー","シェフカワカミ","イオンタウン"];
-chips($("stores"),STORES,()=>store,v=>{store=v;if(v&&FOOD_DEFAULT.includes(v))tags.add("食品");},()=>SE.click());
+chips($("stores"),STORES,()=>store,v=>{store=v;if(v&&FOOD_DEFAULT.includes(v))tags.add("食品");
+  if(v===STORE_FREE)setTimeout(()=>$("storeName").focus(),0);},()=>SE.click());
+/* 店舗「記入」なら入力した名前を店舗名として使う */
+const storeName=()=>store===STORE_FREE?$("storeName").value.trim():store;
+$("storeName").addEventListener("input",()=>render());
 TAGS.forEach(t=>{const b=document.createElement("button");b.className="chip"+(t===MEMO?" memo":"");b.textContent=t;
   b.onclick=()=>{tags.has(t)?tags.delete(t):tags.add(t);render();
     if(t===MEMO&&tags.has(t))$("memo").focus();};
@@ -216,10 +225,11 @@ function render(){
   document.querySelectorAll("#stores .chip").forEach(b=>b.setAttribute("aria-pressed",b.textContent===store));
   document.querySelectorAll("#tags .chip").forEach(b=>b.setAttribute("aria-pressed",tags.has(b.textContent)));
   $("memo").hidden=!tags.has(MEMO);
-  $("picked").innerHTML=(store?`<span>${store}</span>`:`<span class="ph">店舗を選択</span>`)+(tagList().length?tagList().map(t=>`<span>${t}</span>`).join(""):`<span class="ph">タグなし</span>`);
+  $("storeName").hidden=store!==STORE_FREE;
+  $("picked").innerHTML=(storeName()?`<span>${esc(storeName())}</span>`:`<span class="ph">店舗を選択</span>`)+(tagList().length?tagList().map(t=>`<span>${t}</span>`).join(""):`<span class="ph">タグなし</span>`);
   $("amount").innerHTML=`<small>¥</small>${yen(total())}`;
   $("calc").textContent=(base&&typed)?`${yen(base)} ＋ ${yen(Number(typed))}`:"";
-  $("ok").disabled=!(store&&total()>0);
+  $("ok").disabled=!(storeName()&&total()>0);
   renderTotal();
 }
 /* 累計：タップで 今月→本日→今週→月前半→月後半 */
@@ -262,9 +272,9 @@ $("ok").onclick=()=>{
   const d=new Date();
   const date=`${dkey(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   const r=load();const memo=tags.has(MEMO)?$("memo").value.trim():"";
-  r.unshift({id:Date.now(),date,store,tags:tagList(),memo,amount:total()});save(r);
-  toast(`${store} ¥${yen(total())} を記録`);
-  store=null;tags=new Set();$("memo").value="";$("memo").blur();base=0;typed="";render();
+  r.unshift({id:Date.now(),date,store:storeName(),tags:tagList(),memo,amount:total()});save(r);
+  toast(`${storeName()} ¥${yen(total())} を記録`);
+  store=null;tags=new Set();$("memo").value="";$("memo").blur();$("storeName").value="";$("storeName").blur();base=0;typed="";render();
 };
 function toast(t){const e=$("toast");e.textContent=t;e.hidden=false;clearTimeout(e._t);e._t=setTimeout(()=>e.hidden=true,1600)}
 /* 表表示 */
