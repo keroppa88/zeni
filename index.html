@@ -41,14 +41,18 @@ button{touch-action:manipulation}
 .stores .chip[data-c="life"]{background:var(--c-life)}
 .stores .chip[data-c="tech"]{background:var(--c-tech)}
 .stores .chip[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
-.tags{flex:none;display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
-.tags .chip{text-align:center;color:var(--tag);background:var(--tag-bg);border-color:transparent;padding:6px 2px}
+.tags{flex:none;display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.tags .chip{text-align:center;color:var(--tag);background:var(--tag-bg);border-color:transparent;padding:6px 1px;font-size:11.5px}
+.tags .chip.memo{background:var(--surface);border:1px dashed var(--tag)}
 .tags .chip[aria-pressed="true"]{background:var(--tag);color:var(--bg)}
 /* 中央：縮まない */
 .center{flex:none;display:flex;flex-direction:column;gap:4px;
   background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
 .picked{display:flex;gap:6px;font-size:12.5px;font-weight:700;min-height:20px;overflow:hidden;white-space:nowrap}
 .picked span{padding:1px 7px;border-radius:5px;background:var(--bg);overflow:hidden;text-overflow:ellipsis}
+.memo-in{width:100%;box-sizing:border-box;font:500 16px var(--sans);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:5px 8px;-webkit-user-select:text;user-select:text}
+.memo-in:focus{outline:2px solid var(--tag);outline-offset:0}
+td small{display:block;font-size:11px;color:var(--muted)}
 .picked .ph{color:var(--muted);font-weight:500;background:none;padding:1px 0}
 .row{display:flex;align-items:center;gap:10px}
 .amount{flex:1;min-width:0;font:600 30px var(--mono);font-variant-numeric:tabular-nums;text-align:right;overflow:hidden;white-space:nowrap}
@@ -103,6 +107,7 @@ td:nth-child(3){color:var(--tag);font-size:12px}
 
     <div class="center">
       <div class="picked" id="picked"></div>
+      <input class="memo-in" id="memo" type="text" placeholder="項目名を入力" autocomplete="off" hidden>
       <div class="row">
         <div class="amtbox"><div class="calc" id="calc"></div><div class="amount" id="amount"><small>¥</small>0</div></div>
         <button class="ok" id="ok" disabled>決定</button>
@@ -133,15 +138,17 @@ const STORE_GROUPS=[
 ];
 const STORES=STORE_GROUPS.flatMap(g=>g[1]);
 const CAT=Object.fromEntries(STORE_GROUPS.flatMap(([c,l])=>l.map(n=>[n,c])));
-const TAGS=["外食","食品","コンテンツ","非日常気晴らし","非日常必要","必要経費"];
+const MEMO="記入";
+const TAGS=["外食","食品","コンテンツ",MEMO,"非日常気晴らし","非日常必要","必要経費"];
 const KEY="kakeibo.records.v1";
-let store=null, tag=null, base=0, typed="";
+let store=null, tags=new Set(), base=0, typed="";
 const total=()=>base+Number(typed||0);
 
 const load=()=>{try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return []}};
 const save=r=>{try{localStorage.setItem(KEY,JSON.stringify(r))}catch(e){}};
 const yen=n=>n.toLocaleString("ja-JP");
 const $=id=>document.getElementById(id);
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 /* 効果音（Web Audio） */
 let ac=null;
@@ -181,12 +188,17 @@ function chips(el,items,get,set,sound){
 }
 /* スーパーを選ぶとタグ「食品」を自動選択（あとで変更可） */
 const FOOD_DEFAULT=["サンディ","阪急オアシス","KOHYO","イズミヤ","業務スーパー","シェフカワカミ","イオンタウン"];
-chips($("stores"),STORES,()=>store,v=>{store=v;if(v&&FOOD_DEFAULT.includes(v))tag="食品";},()=>SE.click());
-chips($("tags"),TAGS,()=>tag,v=>tag=v);
+chips($("stores"),STORES,()=>store,v=>{store=v;if(v&&FOOD_DEFAULT.includes(v))tags.add("食品");},()=>SE.click());
+TAGS.forEach(t=>{const b=document.createElement("button");b.className="chip"+(t===MEMO?" memo":"");b.textContent=t;
+  b.onclick=()=>{tags.has(t)?tags.delete(t):tags.add(t);render();
+    if(t===MEMO&&tags.has(t))$("memo").focus();};
+  $("tags").appendChild(b)});
+const tagList=()=>TAGS.filter(t=>t!==MEMO&&tags.has(t));
 function render(){
   document.querySelectorAll("#stores .chip").forEach(b=>b.setAttribute("aria-pressed",b.textContent===store));
-  document.querySelectorAll("#tags .chip").forEach(b=>b.setAttribute("aria-pressed",b.textContent===tag));
-  $("picked").innerHTML=(store?`<span>${store}</span>`:`<span class="ph">店舗を選択</span>`)+(tag?`<span>${tag}</span>`:`<span class="ph">タグなし</span>`);
+  document.querySelectorAll("#tags .chip").forEach(b=>b.setAttribute("aria-pressed",tags.has(b.textContent)));
+  $("memo").hidden=!tags.has(MEMO);
+  $("picked").innerHTML=(store?`<span>${store}</span>`:`<span class="ph">店舗を選択</span>`)+(tagList().length?tagList().map(t=>`<span>${t}</span>`).join(""):`<span class="ph">タグなし</span>`);
   $("amount").innerHTML=`<small>¥</small>${yen(total())}`;
   $("calc").textContent=(base&&typed)?`${yen(base)} ＋ ${yen(Number(typed))}`:"";
   $("ok").disabled=!(store&&total()>0);
@@ -231,9 +243,10 @@ $("ok").onclick=()=>{
   SE.ok();
   const d=new Date();
   const date=`${dkey(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  const r=load();r.unshift({id:Date.now(),date,store,tag:tag||"",amount:total()});save(r);
+  const r=load();const memo=tags.has(MEMO)?$("memo").value.trim():"";
+  r.unshift({id:Date.now(),date,store,tags:tagList(),memo,amount:total()});save(r);
   toast(`${store} ¥${yen(total())} を記録`);
-  store=tag=null;base=0;typed="";render();
+  store=null;tags=new Set();$("memo").value="";$("memo").blur();base=0;typed="";render();
 };
 function toast(t){const e=$("toast");e.textContent=t;e.hidden=false;clearTimeout(e._t);e._t=setTimeout(()=>e.hidden=true,1600)}
 /* 表表示 */
@@ -242,7 +255,7 @@ function renderTable(){
   if(!r.length){tb.innerHTML='<tr><td colspan="5" class="empty">まだ記録はありません</td></tr>';return}
   r.forEach(x=>{const tr=document.createElement("tr");
     const [,mm,dd]=x.date.slice(0,10).split("-");
-    tr.innerHTML=`<td>${Number(mm)}/${Number(dd)}</td><td>${x.store}</td><td>${x.tag}</td><td class="num">¥${yen(x.amount)}</td><td></td>`;
+    tr.innerHTML=`<td>${Number(mm)}/${Number(dd)}</td><td>${esc(x.store)}${x.memo?`<small>${esc(x.memo)}</small>`:""}</td><td>${esc((x.tags||(x.tag?[x.tag]:[])).join("・"))}</td><td class="num">¥${yen(x.amount)}</td><td></td>`;
     const b=document.createElement("button");b.className="del";b.textContent="×";b.setAttribute("aria-label","削除");
     b.onclick=()=>{if(b.classList.contains("c")){save(load().filter(y=>y.id!==x.id));renderTable();renderTotal()}else{b.classList.add("c");b.textContent="削除"}};
     tr.lastChild.appendChild(b);tb.appendChild(tr)});
