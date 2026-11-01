@@ -11,15 +11,16 @@
 :root{
   --bg:#f3f5f4; --surface:#ffffff; --fg:#1d2624; --muted:#66746f;
   --line:#d9e0dd; --accent:#1f6f5c; --accent-fg:#ffffff; --tag:#8a5a12; --tag-bg:#fbf1e1;
+  --c-super:#e3f3e4; --c-conv:#fbf3cf; --c-food:#fde6d8; --c-amzn:#eadccb; --c-media:#dcf0fa; --c-life:#ecebe6; --c-tech:#ece3f7;
   --sans:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#121816; --surface:#1b2320; --fg:#e6ece9; --muted:#93a39d;
-  --line:#2c3733; --accent:#4fb497; --accent-fg:#0d1513; --tag:#e9b867; --tag-bg:#2a2217; color-scheme:dark}}
+  --line:#2c3733; --accent:#4fb497; --accent-fg:#0d1513; --tag:#e9b867; --tag-bg:#2a2217; --c-super:#1d3322; --c-conv:#353017; --c-food:#3a2619; --c-amzn:#3a2c1d; --c-media:#16303c; --c-life:#2b2a27; --c-tech:#2c2140; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#121816; --surface:#1b2320; --fg:#e6ece9; --muted:#93a39d;
-  --line:#2c3733; --accent:#4fb497; --accent-fg:#0d1513; --tag:#e9b867; --tag-bg:#2a2217; color-scheme:dark}
+  --line:#2c3733; --accent:#4fb497; --accent-fg:#0d1513; --tag:#e9b867; --tag-bg:#2a2217; --c-super:#1d3322; --c-conv:#353017; --c-food:#3a2619; --c-amzn:#3a2c1d; --c-media:#16303c; --c-life:#2b2a27; --c-tech:#2c2140; color-scheme:dark}
 html,body{height:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-tap-highlight-color:transparent;overflow:hidden;-webkit-user-select:none;user-select:none}
 button{touch-action:manipulation}
@@ -30,6 +31,16 @@ button{touch-action:manipulation}
 .stores::-webkit-scrollbar{display:none}
 .chip{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:7px;padding:6px 9px;font:500 12.5px var(--sans);white-space:nowrap}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+/* 店舗の分野色 */
+.stores .chip{border-color:transparent}
+.stores .chip[data-c="super"]{background:var(--c-super)}
+.stores .chip[data-c="conv"]{background:var(--c-conv)}
+.stores .chip[data-c="food"]{background:var(--c-food)}
+.stores .chip[data-c="amzn"]{background:var(--c-amzn)}
+.stores .chip[data-c="media"]{background:var(--c-media)}
+.stores .chip[data-c="life"]{background:var(--c-life)}
+.stores .chip[data-c="tech"]{background:var(--c-tech)}
+.stores .chip[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
 .tags{flex:none;display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
 .tags .chip{text-align:center;color:var(--tag);background:var(--tag-bg);border-color:transparent;padding:6px 2px}
 .tags .chip[aria-pressed="true"]{background:var(--tag);color:var(--bg)}
@@ -109,7 +120,17 @@ td:nth-child(3){color:var(--tag);font-size:12px}
 <div class="toast" id="toast" hidden></div>
 
 <script>
-const STORES=["Amazon Downloads","Amazon通販","Amazonプライム","Anthropic（Claude）","OpenAI（ChatGPT）","IIJ","J-Quants API","Microsoft","転職会議","Google Cloud","Apple","サンディ","阪急オアシス","KOHYO","シェフカワカミ","イズミヤ","業務スーパー","マクドナルド","なか卯","カフェ・ド・クリエ","バーガーキング","モスバーガー","スギ薬局","ジャパン","MEGAドン・キホーテ","ファミリーマート","自動販売機","ニトリ","メルカリ","イオンタウン"];
+const STORE_GROUPS=[
+  ["super",["サンディ","阪急オアシス","KOHYO","イズミヤ","業務スーパー","シェフカワカミ","イオンタウン","スギ薬局","ジャパン","MEGAドン・キホーテ"]],
+  ["conv",["ファミリーマート","自動販売機"]],
+  ["food",["マクドナルド","なか卯","カフェ・ド・クリエ","バーガーキング","モスバーガー"]],
+  ["amzn",["Amazon通販","Amazonプライム"]],
+  ["media",["Amazon Downloads","ブックオフ"]],
+  ["life",["ニトリ","メルカリ"]],
+  ["tech",["Anthropic（Claude）","OpenAI（ChatGPT）","Microsoft","Google Cloud","Apple","J-Quants API","IIJ","転職会議"]],
+];
+const STORES=STORE_GROUPS.flatMap(g=>g[1]);
+const CAT=Object.fromEntries(STORE_GROUPS.flatMap(([c,l])=>l.map(n=>[n,c])));
 const TAGS=["外食","食品","コンテンツ","非日常気晴らし","非日常必要","必要経費"];
 const KEY="kakeibo.records.v1";
 let store=null, tag=null, amt="";
@@ -151,7 +172,7 @@ const SE={
 (()=>{let last=0;const el=document.getElementById("stores");
   el.addEventListener("scroll",()=>{if(Math.abs(el.scrollLeft-last)>=36){last=el.scrollLeft;SE.tick()}},{passive:true})})();
 function chips(el,items,get,set,sound){
-  items.forEach(t=>{const b=document.createElement("button");b.className="chip";b.textContent=t;
+  items.forEach(t=>{const b=document.createElement("button");b.className="chip";b.textContent=t;if(CAT[t])b.dataset.c=CAT[t];
     b.onclick=()=>{if(sound)sound();set(get()===t?null:t);render()};el.appendChild(b)});
 }
 chips($("stores"),STORES,()=>store,v=>store=v,()=>SE.click());
