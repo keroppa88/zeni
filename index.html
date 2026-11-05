@@ -122,6 +122,9 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .monthbar button{border:none;background:none;color:var(--fg);font:700 20px var(--sans);padding:4px 18px}
 .monthbar button:disabled{opacity:.25}
 .sheet textarea{font:13px var(--mono);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;height:38vh;resize:none;-webkit-user-select:text;user-select:text;white-space:pre;overflow:auto}
+.autotags{display:flex;flex-wrap:wrap;gap:6px}
+.autotags .chip{color:var(--tag);background:var(--tag-bg);border:1px solid var(--line)}
+.autotags .chip[aria-pressed="true"]{background:var(--tag);color:var(--bg);border-color:var(--tag)}
 .sheet .note{margin:0;font-size:12px;color:var(--muted);line-height:1.6}
 .modebar button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .fdate{flex:1;display:flex;align-items:center;min-height:40px;font:700 15px var(--sans);padding:0 4px}
@@ -489,12 +492,22 @@ function openMenu(kind,name){
     if(a==="close")closeSheet()});
 }
 function swatchesHtml(cur){return `<div class="swatches">${COLORS.map(([c,ja])=>`<button class="chip" data-c="${c}" aria-pressed="${c===cur}">${ja}</button>`).join("")}</div>`}
+/* 「選ぶと自動で付くタグ」：どのタグ一覧から選ぶか */
+const AUTO_FROM={stores:"tags",foods:"ftags",ftags:"ftags"};
+function autoHtml(kind,cur,self){
+  const from=AUTO_FROM[kind];if(!from)return "";
+  const names=listOf(from).map(x=>x.name).filter(n=>n!==self&&!(from==="tags"&&n===memoName()));
+  return `<p class="note">選ぶと自動で付くタグ</p><div class="autotags">${names.map(n=>`<button class="chip" data-t="${esc(n)}" aria-pressed="${cur.includes(n)}">${esc(n)}</button>`).join("")}</div>`}
+function bindAuto(sel){$("sheet").querySelectorAll(".autotags button").forEach(b=>b.onclick=()=>{const t=b.dataset.t;
+  sel.has(t)?sel.delete(t):sel.add(t);b.setAttribute("aria-pressed",sel.has(t))})}
+const autoOrder=(kind,sel)=>listOf(AUTO_FROM[kind]).map(x=>x.name).filter(n=>sel.has(n));
 function openEdit(kind,name){
   const item=listOf(kind).find(x=>x.name===name);if(!item)return closeSheet();
   let c=item.c;
-  sheet(`<h3>${LISTS[kind].ja}の編集</h3><input id="editName" type="text" autocomplete="off">${swatchesHtml(c)}
+  const sel=new Set([...(item.autoTags||[]),...(kind==="stores"&&item.food?["食品"]:[])]);
+  sheet(`<h3>${LISTS[kind].ja}の編集</h3><input id="editName" type="text" autocomplete="off">${swatchesHtml(c)}${autoHtml(kind,[...sel],item.name)}
     <div class="acts"><button class="act" data-a="close">やめる</button><button class="act main" data-a="save" style="grid-column:span 2">保存</button></div>`);
-  $("editName").value=item.name;
+  $("editName").value=item.name;bindAuto(sel);
   const sw=$("sheet").querySelectorAll(".swatches button");
   sw.forEach(b=>b.onclick=()=>{c=b.dataset.c;sw.forEach(x=>x.setAttribute("aria-pressed",x===b))});
   $("sheet").querySelector("[data-a=close]").onclick=closeSheet;
@@ -503,19 +516,23 @@ function openEdit(kind,name){
     if(nn!==item.name&&listOf(kind).some(x=>x.name===nn)){toast("同じ名前があります");return}
     // 選択中なら選択も新しい名前へ（これまでの記録はそのまま）
     LISTS[kind].ren(item.name,nn);
-    item.name=nn;item.c=c;LISTS[kind].save();closeSheet();renderChips()};
+    item.name=nn;item.c=c;
+    if(AUTO_FROM[kind]){item.autoTags=autoOrder(kind,sel);delete item.food}
+    LISTS[kind].save();closeSheet();renderChips()};
 }
 function openNew(kind){
-  let c=LISTS[kind].defC;
-  sheet(`<h3>${LISTS[kind].ja}を追加</h3><input id="newName" type="text" placeholder="${LISTS[kind].ja}" autocomplete="off">${swatchesHtml(c)}
+  let c=LISTS[kind].defC;const sel=new Set();
+  sheet(`<h3>${LISTS[kind].ja}を追加</h3><input id="newName" type="text" placeholder="${LISTS[kind].ja}" autocomplete="off">${swatchesHtml(c)}${autoHtml(kind,[],"")}
     <div class="acts"><button class="act" data-a="close">やめる</button><button class="act main" data-a="add" style="grid-column:span 2">追加</button></div>`);
+  bindAuto(sel);
   const sw=$("sheet").querySelectorAll(".swatches button");
   sw.forEach(b=>b.onclick=()=>{c=b.dataset.c;sw.forEach(x=>x.setAttribute("aria-pressed",x===b))});
   $("sheet").querySelector("[data-a=close]").onclick=closeSheet;
   $("sheet").querySelector("[data-a=add]").onclick=()=>{
     const name=$("newName").value.trim();if(!name)return $("newName").focus();
     if(listOf(kind).some(x=>x.name===name)){toast("同じ名前があります");return}
-    listOf(kind).push({name,c});LISTS[kind].save();closeSheet();renderChips();
+    const it={name,c};if(AUTO_FROM[kind]&&sel.size)it.autoTags=autoOrder(kind,sel);
+    listOf(kind).push(it);LISTS[kind].save();closeSheet();renderChips();
     const el=$(kind);el.scrollLeft=el.scrollWidth;toast(`${name} を追加`)};
   setTimeout(()=>$("newName").focus(),50);
 }
